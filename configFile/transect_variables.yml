@@ -1,0 +1,140 @@
+# Survey Template
+
+_variables: ['time','date', 'Latitude', 'Longitude', 'Northing', 'Easting', 'xFRF', 'yFRF', 'Elevation', 'Profile_number', 'Survey_number',  'Ellipsoid']
+_attributes: ['notes']
+_dimensions: ['time']
+
+time:
+    name: 'time'
+    units: 'seconds since 1970-01-01 00:00:00'
+    axis: 'T'
+    standard_name: 'time'
+    long_name: 'UTC Sample Time'
+    data_type: 'f8'
+    dim: ['time']
+    calendar: 'gregorian'
+    fill_value: '-999'
+    notes: 'this is the time of each data point collected in the survey'
+    
+date:
+    name: 'date'
+    units: 'seconds since 1970-01-01 00:00:00'
+    long_name: 'UTC Sample Time'
+    data_type: 'f8'
+    dim: ['time']
+    calendar: 'gregorian'
+    fill_value: '-999'
+    notes: 'this is the date value only for each survey'
+
+Latitude:
+    name: 'lat'
+    units: 'degrees_north'
+    standard_name: 'latitude in decimal degrees north'
+    long_name: 'Latitude'
+    axis: 'Y'
+    dim: ['time']
+    data_type: 'f8'
+    fill_value: '-999'
+
+Longitude:
+    name: 'lon'
+    units: 'degrees_east'
+    standard_name: 'longitude'
+    long_name: 'Longitude in decimal degrees east'
+    axis: 'X'
+    dim: ['time']
+    data_type: 'f8'
+    fill_value: '-999'
+
+Northing:
+    name: 'northing'
+    units: 'm'
+    long_name: 'Northing in NC Stateplane 3200'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'Northing'
+
+Easting:
+    name: 'easting'
+    units: 'm'
+    long_name: 'Northing in NC Stateplane 3200'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'Easting'
+
+xFRF:
+    name: 'xFRF'
+    units: 'm'
+    long_name: 'Local FRF Cross-Shore Coordinate'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'x'
+
+yFRF:
+    name: 'yFRF'
+    units: 'm'
+    long_name: 'Local FRF Along-Shore coordinate'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'y'
+
+Elevation:
+    name: 'elevation'
+    units: 'm'
+    standard_name: ''
+    long_name: 'bottom elevation'
+    axis: 'Z'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'z'
+    description: 'Elevation is in NAVD88 via geoid 2003'
+
+Collection_Platform:
+    name: 'Collection_Platform'
+    units: ''
+    standard_name: ''
+    long_name: 'Collection_Platform'
+    data_type: 'S1'
+    dim: ['time']
+    fill_value: '-999.99'
+    short_name: ''
+    description: 'Survey Craft used during data collection (i.e LARC, CRAB, Sled)'
+
+Profile_number:
+    name: 'profileNumber'
+    units: 'none'
+    standard_name: ''
+    long_name: 'profile number'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'profile number'
+    description: ' Profile number based on FRF_Yshore coordinates'
+
+
+Survey_number:
+    name: 'surveyNumber'
+    units: 'None'
+    standard_name: ''
+    long_name: 'survey number'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'sruvery number'
+    description: 'incremental value beginning with first survey'
+
+Ellipsoid:
+    name: 'Ellipsoid'
+    units: 'm'
+    standard_name: 'height_above_reference_ellipsoid'
+    long_name: 'ellipsoid'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'ellipsoid'
+    description: 'GRS 80 ellipsoid'
