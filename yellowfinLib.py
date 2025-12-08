@@ -781,6 +781,7 @@ def plotPlanViewOnArgus(data, geoTifName, ofName=None, argus_time_out_s=120):
         tt += 30
         print(f"waited for {tt} seconds for {geoTifName}")
         if tt >= argus_time_out_s:
+            print(f"Timed out after {tt} seconds waiting for {geoTifName}. Image not found.")
             return
 
     timex = rasterio.open(geoTifName)
