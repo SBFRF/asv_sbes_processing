@@ -109,8 +109,8 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
 
     # NMEA data from sonar, this is not Post Processed Kinematic (PPK) data.  It is used for only cursory or
     # introductory look at the data
-    fpathGNSS = os.path.join(datadir, 'nmeadata')  # load NMEA data from this location
-    saveFnameGNSS = os.path.join(datadir, f'{timeString}_gnssRaw.h5')  # save nmea data to this location
+    # fpathGNSS = os.path.join(datadir, 'nmeadata')  # load NMEA data from this location
+    # saveFnameGNSS = os.path.join(datadir, f'{timeString}_gnssRaw.h5')  # save nmea data to this location
 
     # RINEX data
     # look for all subfolders with RINEX in the folder name inside the "datadir" emlid ppk processor
@@ -119,19 +119,21 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
 
     logging.debug(f"saving intermediate files for sonar here: {saveFnameSonar}")
     logging.debug(f"saving intermediate files for sonar here: {saveFnamePPK}")
-    logging.debug(f"saving intermediate files for GNSS here: {saveFnameGNSS}")
+    # logging.debug(f"saving intermediate files for GNSS here: {saveFnameGNSS}")
     ## load files
     if not os.path.isfile(saveFnameSonar):
         yellowfinLib.loadSonar_s500_binary(fpathSonar, outfname=saveFnameSonar, verbose=verbose)
     else:
         logging.info(f'Skipping {saveFnameSonar}')
     # then load NMEA files
+    '''
     if not os.path.isfile(saveFnameGNSS):  # if we've already processed the GNSS file
         yellowfinLib.load_yellowfin_NMEA_files(fpathGNSS, saveFname=saveFnameGNSS,
                                            plotfname=os.path.join(plotDir, 'GPSpath_fromNMEAfiles.png'),
                                            verbose=verbose)
     else:
         logging.info(f'Skipping {saveFnameGNSS}')
+    '''
 
     if not os.path.isfile(saveFnamePPK):
         if makePos == True:
@@ -205,7 +207,7 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
 
     # 6.2: load all files we created in previous steps
     sonarData = yellowfinLib.load_h5_to_dictionary(saveFnameSonar)
-    payloadGpsData = yellowfinLib.load_h5_to_dictionary(saveFnameGNSS)  # this is used for the pc time adjustement
+    # payloadGpsData = yellowfinLib.load_h5_to_dictionary(saveFnameGNSS)  # this is used for the pc time adjustement
     T_ppk = pd.read_hdf(saveFnamePPK)
 
     # Adjust GNSS time by the Leap Seconds https://www.cnmoc.usff.navy.mil/Our-Commands/United-States-Naval-Observatory/Precise-Time-Department/Global-Positioning-System/USNO-GPS-Time-Transfer/Leap-Seconds/
@@ -217,7 +219,7 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
     T_ppk['GNSS_elevation_NAVD88'] = yellowfinLib.convertEllipsoid2NAVD88(T_ppk['lat'], T_ppk['lon'], T_ppk['height'],
                                                                           geoidFile=geoid)
     # 6.3: now plot my time offset between GPS and sonar
-    pc_time_off = payloadGpsData['pc_time_gga'] + ET2UTC - payloadGpsData['gps_time']
+    pc_time_off = ET2UTC #payloadGpsData['pc_time_gga'] + ET2UTC - payloadGpsData['gps_time']
 
     ofname = os.path.join(plotDir, 'clockOffset.png')
     # TODO pull this figure out to a function
@@ -243,7 +245,7 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
     yellowfinLib.qaqc_sonar_profiles(ofname, sonarData)
     ofname = os.path.join(plotDir, 'AllData.png')
 
-    yellowfinLib.qaqc_plot_all_data_in_time(ofname, sonarData, sonar_range, payloadGpsData, T_ppk)
+    # yellowfinLib.qaqc_plot_all_data_in_time(ofname, sonarData, sonar_range, payloadGpsData, T_ppk)
 
 
     ofname = os.path.join(plotDir, 'subsetForCrossCorrelation.png')
