@@ -7,7 +7,7 @@ processing:
                          #      "are ['default', 'smooth', 'instant']. default uses instant depth for time syncing and"
                          #      " smooth depths for final bathy out; 'smooth' uses smoothed values for both, 'instant' "
                          #      "uses instant values for both")
-
+  trace_bottom_chunk_size: 0 #turn to 0 to skip tracing
 
 extra_args:
   conv_bin: ref/convbin

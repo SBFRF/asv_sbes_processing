@@ -264,6 +264,33 @@ def loadSonar_ectd032_ascii(
             hf.create_dataset("this_ping_depth_measurement_confidence", data=nans)
             hf.create_dataset("smoothed_depth_measurement_confidence", data=nans)
 
+def swap_human_traced_line(sonarData, traced_bottom, plot_fname=None):
+    sonarData['oem_depth_smooth_m'] = sonarData['smooth_depth_m']
+    sonarData['oem_depth_instant_m'] = sonarData['this_ping_depth_m']
+
+    # range_bin = traced_bottom['qaqc_depth_line'][:, 1][traced_bottom['qaqc_depth_line'][:, 1] > 0]   #fill values are -999
+    idx_fill = traced_bottom['qaqc_depth_line'][:, 1] < 0
+    traced_bottom['qaqc_depth_line'][idx_fill, 1] = np.nan
+    traced_range_m = sonarData['range_m']
+
+    # now write out the bottom range
+    sonarData['smooth_depth_m'] = traced_range_m
+    sonarData['this_ping_depth_m'] = traced_range_m
+    sonarData['smoothed_depth_measurement_confidence'] = np.ones_like(sonarData['smooth_depth_m']) * 100
+    sonarData['this_ping_depth_measurement_confidence'] = np.ones_like(sonarData['smooth_depth_m']) * 100
+
+    if plot_fname is not None:
+        plt.figure()
+        plt.subplot(211)
+        plt.plot(traced_bottom['qaqc_depth_line'][:, 1], '.');
+        plt.plot((traced_bottom['qaqc_depth_line'][:, 1].astype(int) > 0) * 500)
+        plt.ylabel('bin count')
+        plt.subplot(212)
+        plt.plot(traced_range_m, '.')
+        plt.ylabel('cleaned depth [m]')
+        plt.savefig('traced_range.png')
+        plt.close()
+    return sonarData
 
 def loadSonar_s500_binary(dataPath, h5_ofname=None, verbose=False):
     """Loads and concatenates all binary files (*.dat) located in the dataPath location

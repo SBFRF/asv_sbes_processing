@@ -189,7 +189,7 @@ def main(
     # sonar data
     fpathSonar = os.path.join(datadir, sonar_model)  # reads sonar from here
     saveFnameSonar = os.path.join(datadir, f"{timeString}_sonarRaw.h5")  # saves sonar file here
-
+    traced_fname_sonar = os.path.join(datadir, f"{timeString}_sonarRaw_bottomTraced_wholeRecord.h5")
     # NMEA data from sonar, this is not Post Processed Kinematic (PPK) data.  It is used for only cursory or
     # introductory look at the data
     fpathGNSS = os.path.join(datadir, "nmeadata")  # load NMEA data from this location
@@ -342,13 +342,19 @@ def main(
 
     ##################################### above is loading/making intermediate files ################################3
     # 6.2: load all files we created in previous steps
-    #sonarData = yellowfinLib.load_h5_to_dictionary(saveFnameSonar)
-    sonarData = run_sonar_tracer_gui(saveFnameSonar, '250')
+    sonarData = yellowfinLib.load_h5_to_dictionary(saveFnameSonar)
+    trace_bottom_chunk = yaml_config['processing'].get('trace_bottom_chunk_size', 250)
+    if not os.path.exists(traced_fname_sonar):  # if the traced bottom doesn't exist, go into the gui
+        traced_bottom = run_sonar_tracer_gui(saveFnameSonar, trace_bottom_chunk)
+    else:
+        traced_bottom = yellowfinLib.load_h5_to_dictionary(traced_fname_sonar)
+    # now fuse bottom traced to the correct bathy location
+    sonarData = yellowfinLib.swap_human_traced_line(sonarData, traced_bottom)
     T_ppk = pd.read_hdf(saveFnamePPK)
     if time_sync_method != "native":
         payload_gps_data = yellowfinLib.load_h5_to_dictionary(
             save_fname_gnss
-        )  # this is used for the pc time adjustement
+        )  # this is used for the pc time adjustment
     else:
         payload_gps_data = None
     # Adjust GNSS time by the Leap Seconds https://www.cnmoc.usff.navy.mil/Our-Commands/United-States-Naval-Observatory/Precise-Time-Department/Global-Positioning-System/USNO-GPS-Time-Transfer/Leap-Seconds/
@@ -384,8 +390,6 @@ def main(
         qualityLogic = np.ones_like(sonar_bottom_algorithm_m, dtype=bool)
     elif time_sync_method not in acceptable_time_sync:
         raise ValueError(f"acceptable sonar methods include {acceptable_time_sync}")
-    # else:
-    #     sonar_range =
 
     # 6.5 now plot sonar with time
     ofname = os.path.join(plotDir, f"{timeString}_SonarBackScatter.png")
