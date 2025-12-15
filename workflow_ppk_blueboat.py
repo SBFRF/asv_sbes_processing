@@ -204,10 +204,11 @@ def main():
     imu_df = parse_imu_csv_to_df(imu_csv_path)
 
     emlid_fldr_list = ["/data/blueboat/20251120/emlidRaw/20251120_RINEX"]
-    pos_df = read_emlid_pos(emlid_fldr_list, saveFname="/data/blueboat/20251120/20251120_ppkRaw.h5")
+    pos_df = read_emlid_pos(emlid_fldr_list)
     pos_df['timestamp'] = pos_df['datetime'].astype(int)
     # divide the resulting integer by the number of nanoseconds in a second
     pos_df['timestamp'] = pos_df['timestamp'].div(10 ** 9)
+    pos_df.to_hdf("/data/blueboat/20251120/20251120_ppkRaw.h5", key='ppk')
 
     merged_df = merge_pos_sonar_imu_data(sonar_df, pos_df, imu_df)
     rectified_df = rectify_sonar_position(merged_df)
