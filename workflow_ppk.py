@@ -20,7 +20,9 @@ import argparse, logging
 
 from mission_yaml_files import make_summary_yaml, make_failure_yaml
 
-__version__ = 0.3
+sonar_methods = ['default', 'instant', 'smoothed', 'qaqc']
+
+__version__ = 0.4
 def parse_args(__version__):
     parser = argparse.ArgumentParser(f"PPK processing for yellowfin (V{__version__})", add_help=True)
     # datadir, geoid, makePos = True, verbose = 1
@@ -39,10 +41,11 @@ def parse_args(__version__):
     parser.add_argument('-v', '--verbosity', type=int, default=2, metavar='',
                         help='sets verbosity for debug, 1=Debug (most), 2=Info (normal), 3=Warning (least)')
     parser.add_argument('--sonar_method', type=str, default='default',
-                        help="which s500 depth reading to use for time-shifting and bottom reporting, avialable "
-                             "are ['default', 'smooth', 'instant', 'qaqc']. default uses instant depth for time syncing and"
-                             " smooth depths for final bathy out; 'smooth' uses smoothed values for both, 'instant' "
-                             "uses instant values for both")
+                        help="which s500 depth reading to use for time-shifting and bottom reporting, available "
+                             f"are {sonar_methods}. default uses instant depth for time syncing and"
+                             " smooth depths for final bathy out; 'smooth' uses smoothed values for both; 'instant' "
+                             "uses instant values for both; 'qaqc' uses hand-traced values for both "
+                             "(assumes sonar data h5 has been traced in sonar_qaqc tool externally)")
     parser.add_argument('--rtklib_executable', type=str, default='ref/rnx2rtkp',
                         help="path for RTK_lib executable (required if --make-pos flag assigned)")
     parser.add_argument("--ppk_quality_threshold",  type=int, default=1,
@@ -87,9 +90,11 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
         bathy_report = sonar_method
         time_sync = sonar_method
     elif sonar_method == 'qaqc':
-        sonar_confidence = -1
+        sonar_confidence = 100 # not used in filtering data, we assume 100% confidence in human tracing
         bathy_report = sonar_method
         time_sync = sonar_method
+    else:
+        raise ValueError(f'acceptable sonar methods include {sonar_methods}')
 
     logging.info(f"procesing prameters:  sonar time sync method {time_sync}")
     logging.info(f"procesing prameters:  bathy sonar method {bathy_report}")
@@ -242,7 +247,7 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
         sonar_range = sonarData['qaqc_depth_m']
         qualityLogic = sonarData['qaqc_depth_m'] >= 0
     else:
-        raise ValueError('acceptable sonar methods include ["default", "instant", "smooth", "qaqc"]')
+        raise ValueError(f'acceptable sonar methods include {sonar_methods}')
     # use the above to adjust whether you want smoothed/filtered data or raw ping depth values
 
     ofname = os.path.join(plotDir, 'SonarBackScatter.png')
@@ -362,7 +367,7 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
                                           sonarData['qaqc_depth_m'][idxTimeMatchSonar]
                     sonar_out[tidx] = sonarData['qaqc_depth_m'][idxTimeMatchSonar]
                 else:
-                    raise ValueError('acceptable sonar methods include ["default", "instant", "smooth", "qaqc"]')
+                    raise ValueError(f'acceptable sonar methods include {sonar_methods}')
 
             # now log bad locations for quality plotting
             if T_ppk['Q'][idxTimeMatchGNSS] <= ppk_quality_threshold and not qualityLogic[idxTimeMatchSonar]:
