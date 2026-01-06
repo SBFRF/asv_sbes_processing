@@ -16,6 +16,7 @@ import rasterio
 import tqdm
 import wget
 from matplotlib import pyplot as plt
+from matplotlib.pyplot import ticklabel_format
 from rasterio import plot as rplt
 from testbedutils import geoprocess
 from scipy import signal
@@ -1137,15 +1138,30 @@ def plot_planview_FRF(ofname, coords, gnss_out, antenna_offset, elevation_out, s
         plt.tight_layout()
         plt.savefig(ofname)
 
-def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out, lat_out, lon_out, timeString, idxDataToSave, FRF):
+def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out, lat_out, lon_out, timeString, idxDataToSave, FRF, margin=0.1):
         fs = 16
         # make a final plot of all the processed data
         pierStart = geoprocess.FRFcoord(0, 515, coordType='FRF')
         pierEnd = geoprocess.FRFcoord(534, 515, coordType='FRF')
 
         plt.figure(figsize=(12, 8))
-        plt.scatter(lon_out[idxDataToSave], lat_out[idxDataToSave], c=elevation_out[idxDataToSave], vmax=-0.5,
-                    label='processed depths')
+        min_elev = np.min(elevation_out[idxDataToSave])
+        max_elev = np.max(elevation_out[idxDataToSave])
+        diff_elev = max_elev - min_elev
+        buffer = margin*diff_elev
+        if abs(max_elev) < 1:
+            # indicates a sea level survey, ceiling color map at 0.5m below 0m NAVD88 elevation
+            # we assume max_elev will not be significantly greater than 1m elevation
+            if max_elev > 0:
+                vmax = max_elev*1.1
+            else:
+                vmax = 0
+        else:
+            # survey taken at an elevated location, add a margin of survey range (default 10%) to colorbar for readability
+            vmax = max_elev+buffer
+        vmin = min_elev-buffer
+        plt.scatter(lon_out[idxDataToSave], lat_out[idxDataToSave], c=elevation_out[idxDataToSave], 
+                    vmax=vmax, vmin=vmin, label='processed depths')
         cbar = plt.colorbar()
         cbar.set_label('NAVD88 Elevation [m]', fontsize=fs)
         plt.plot(T_ppk['lon'], T_ppk['lat'], 'k.', ms=0.25, label='vehicle trajectory')
