@@ -1147,7 +1147,7 @@ def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out,
         plt.scatter(lon_out[idxDataToSave], lat_out[idxDataToSave], c=elevation_out[idxDataToSave], vmax=-0.5,
                     label='processed depths')
         cbar = plt.colorbar()
-        cbar.set_label('depths NAVD88 [m]', fontsize=fs)
+        cbar.set_label('NAVD88 Elevation [m]', fontsize=fs)
         plt.plot(T_ppk['lon'], T_ppk['lat'], 'k.', ms=0.25, label='vehicle trajectory')
         plt.plot(bad_lon_out, bad_lat_out, 'rx', ms=3, label='bad sonar data, good GPS')
         if FRF == True:
@@ -1157,6 +1157,7 @@ def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out,
         plt.title(f'final data with elevations {timeString}', fontsize=fs + 4)
         plt.tight_layout()
         plt.legend()
+        plt.gca().ticklabel_format(useOffset=False, style='plain')
         plt.savefig(ofname)
 
 def qaqc_post_sonar_time_shift(ofname, T_ppk, indsPPK, commonTime, ppkHeight_i, sonar_range_i, phaseLaginTime,
