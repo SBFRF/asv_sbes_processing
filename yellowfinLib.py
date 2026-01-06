@@ -16,7 +16,6 @@ import rasterio
 import tqdm
 import wget
 from matplotlib import pyplot as plt
-from matplotlib.pyplot import ticklabel_format
 from rasterio import plot as rplt
 from testbedutils import geoprocess
 from scipy import signal
