@@ -135,14 +135,14 @@ def rectify_sonar_position(merged_df):
     to_save = {"Timestamp": time,
                "GPS Lat": merged_df['lat'],
                "GPS Lon": merged_df['lon'],
-               "GPS Height (m)": merged_df['elev'],
+               "GPS NAVD88 Elevation (m)": merged_df['elev'],
                "Sonar Depth (m)": depth,
                "Yaw": yaw,
                "Pitch": pitch,
                "Roll": roll,
                "Rectified Lat": rect_lat,
                "Rectified Lon": rect_lon,
-               "Rectified Elevation (m)": rect_elev}
+               "Rectified NAVD88 Elevation (m)": rect_elev}
     rectified_df = pd.DataFrame.from_dict(to_save)
     rectified_df = rectified_df[abs(np.rad2deg(rectified_df["Roll"])) < 90]
     rectified_df = rectified_df[abs(np.rad2deg(rectified_df["Pitch"])) < 90]
@@ -162,7 +162,7 @@ def merge_pos_sonar_imu_data(sonar_df, pos_df, imu_df):
 
     sonar_lat = np.interp(sonar_df["timestamp"], pos_df["timestamp"], pos_df["lat"], left=np.nan, right=np.nan)
     sonar_lon = np.interp(sonar_df["timestamp"], pos_df["timestamp"], pos_df["lon"], left=np.nan, right=np.nan)
-    sonar_elev = np.interp(sonar_df["timestamp"], pos_df["timestamp"], pos_df["height"], left=np.nan, right=np.nan)
+    sonar_elev = np.interp(sonar_df["timestamp"], pos_df["timestamp"], pos_df["GNSS_elevation_NAVD88"], left=np.nan, right=np.nan)
     sonar_yaw = np.interp(sonar_df["timestamp"], imu_df["timestamp"], imu_df["ATTITUDE.yaw"], left=np.nan, right=np.nan)
     sonar_pitch = np.interp(sonar_df["timestamp"], imu_df["timestamp"], imu_df["ATTITUDE.pitch"], left=np.nan, right=np.nan)
     sonar_roll = np.interp(sonar_df["timestamp"], imu_df["timestamp"], imu_df["ATTITUDE.roll"], left=np.nan, right=np.nan)
@@ -209,6 +209,9 @@ def main():
     # divide the resulting integer by the number of nanoseconds in a second
     pos_df['timestamp'] = pos_df['timestamp'].div(10 ** 9)
     pos_df.to_hdf("/data/blueboat/20251120/20251120_ppkRaw.h5", key='ppk')
+
+    pos_df['GNSS_elevation_NAVD88'] = convertEllipsoid2NAVD88(pos_df['lat'], pos_df['lon'], pos_df['height'],
+                                                                          geoidFile="ref/g2012bu0.bin")
 
     merged_df = merge_pos_sonar_imu_data(sonar_df, pos_df, imu_df)
     rectified_df = rectify_sonar_position(merged_df)
