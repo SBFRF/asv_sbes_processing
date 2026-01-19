@@ -19,6 +19,8 @@ from matplotlib import pyplot as plt
 from rasterio import plot as rplt
 from testbedutils import geoprocess
 from scipy import signal
+from scipy.signal import correlate
+from pygeodesy import geoids
 
 def read_emlid_pos(fldrlistPPK, plot=False, saveFname=None):
     """read and parse multiple pos files in multiple folders provided
@@ -442,8 +444,6 @@ def convertEllipsoid2NAVD88(lats, lons, ellipsoids, geoidFile="g2012bu8.bin"):
     :param geoidFile: pull from https://geodesy.noaa.gov/GEOID/GEOID12B/GEOID12B_CONUS.shtml
     :return: NAVD88 values
     """
-    from pygeodesy import geoids
-
     assert (
         len(lons) == len(lats) == len(ellipsoids)
     ), "lons/lats/elipsoids need to be of same length"
@@ -614,7 +614,7 @@ def load_yellowfin_NMEA_files(fpath:str, saveFname: str, plotfname: str = False,
     if plotfname is not False:
         plt.figure(figsize=(12, 4))
         plt.subplot(121)
-        plt.plot(lon, lat, "-.")
+        plt.plot(lon, lat, ".")
         plt.subplot(122)
         # plt.plot(pc_time_gga, altWGS84, '.-')
         # plt.plot(pc_time_gga, geoSep, label='geoSep')
@@ -631,9 +631,6 @@ def findTimeShiftCrossCorr(signal1, signal2, sampleFreq=1):
     :param sampleFreq: sampling frequency, in HZ
     :return: phase lag in samples, phase lag in time
     """
-    import numpy as np
-    from scipy.signal import correlate
-
     assert len(signal1) == len(signal2), "signals need to be the same lenth"
     # load your time series data into two separate arrays, let's call them signal1 and signal2.
     # compute the cross-correlation between the two signals using the correlate function:
@@ -672,8 +669,6 @@ def loadLLHfiles(flderlistLLH):
 
 
 def butter_lowpass_filter(data, cutoff, fs, order):
-    from scipy import signal
-
     b, a = signal.butter(order, cutoff / fs / 2, "low", analog=False)
     output = signal.filtfilt(b, a, data)
 
