@@ -19,6 +19,8 @@ from matplotlib import pyplot as plt
 from rasterio import plot as rplt
 from testbedutils import geoprocess
 from scipy import signal
+import contextily as ctx
+from pyproj import Transformer
 
 def read_emlid_pos(fldrlistPPK, plot=False, saveFname=None):
     """read and parse multiple pos files in multiple folders provided
@@ -1143,7 +1145,18 @@ def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out,
         pierStart = geoprocess.FRFcoord(0, 515, coordType='FRF')
         pierEnd = geoprocess.FRFcoord(534, 515, coordType='FRF')
 
-        plt.figure(figsize=(12, 8))
+        # Create transformer for converting lat/lon (EPSG:4326) to Web Mercator (EPSG:3857)
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+
+        # Transform coordinates to Web Mercator for contextily basemap
+        x_out, y_out = transformer.transform(lon_out, lat_out)
+        x_ppk, y_ppk = transformer.transform(T_ppk['lon'], T_ppk['lat'])
+        x_bad, y_bad = transformer.transform(bad_lon_out, bad_lat_out)
+        x_pier = [pierStart['Lon'], pierEnd['Lon']]
+        y_pier = [pierStart['Lat'], pierEnd['Lat']]
+        x_pier_transformed, y_pier_transformed = transformer.transform(x_pier, y_pier)
+
+        fig, ax = plt.subplots(figsize=(12, 8))
         min_elev = np.min(elevation_out[idxDataToSave])
         max_elev = np.max(elevation_out[idxDataToSave])
         diff_elev = max_elev - min_elev
@@ -1159,21 +1172,31 @@ def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out,
             # survey taken at an elevated location, add a margin of survey range (default 10%) to colorbar for readability
             vmax = max_elev+buffer
         vmin = min_elev-buffer
-        plt.scatter(lon_out[idxDataToSave], lat_out[idxDataToSave], c=elevation_out[idxDataToSave], 
-                    vmax=vmax, vmin=vmin, label='processed depths')
-        cbar = plt.colorbar()
+
+        scatter = ax.scatter(x_out[idxDataToSave], y_out[idxDataToSave], c=elevation_out[idxDataToSave],
+                    vmax=vmax, vmin=vmin, label='processed depths', zorder=3)
+        cbar = plt.colorbar(scatter, ax=ax)
         cbar.set_label('NAVD88 Elevation [m]', fontsize=fs)
-        plt.plot(T_ppk['lon'], T_ppk['lat'], 'k.', ms=0.25, label='vehicle trajectory')
-        plt.plot(bad_lon_out, bad_lat_out, 'rx', ms=3, label='bad sonar data, good GPS')
+        ax.plot(x_ppk, y_ppk, 'k.', ms=0.25, label='vehicle trajectory', zorder=2)
+        ax.plot(x_bad, y_bad, 'rx', ms=3, label='bad sonar data, good GPS', zorder=4)
         if FRF == True:
-            plt.plot([pierStart['Lon'], pierEnd['Lon']], [pierStart['Lat'], pierEnd['Lat']], 'k-', lw=5, label='FRF pier')
-        plt.ylabel('latitude', fontsize=fs)
-        plt.xlabel('longitude', fontsize=fs)
-        plt.title(f'final data with elevations {timeString}', fontsize=fs + 4)
+            ax.plot(x_pier_transformed, y_pier_transformed, 'k-', lw=5, label='FRF pier', zorder=4)
+
+        # Add satellite imagery basemap
+        try:
+            ctx.add_basemap(ax, source=ctx.providers.Esri.WorldImagery, attribution_size=6)
+        except Exception as e:
+            print(f"Warning: Could not add satellite basemap: {e}")
+            # Continue without basemap if there's an error
+
+        ax.set_ylabel('latitude', fontsize=fs)
+        ax.set_xlabel('longitude', fontsize=fs)
+        ax.set_title(f'final data with elevations {timeString}', fontsize=fs + 4)
         plt.tight_layout()
-        plt.legend()
-        plt.gca().ticklabel_format(useOffset=False, style='plain')
+        ax.legend()
+        ax.ticklabel_format(useOffset=False, style='plain')
         plt.savefig(ofname)
+        plt.close()
 
 def qaqc_post_sonar_time_shift(ofname, T_ppk, indsPPK, commonTime, ppkHeight_i, sonar_range_i, phaseLaginTime,
                                sonarData, sonarIndicies, sonar_range):
