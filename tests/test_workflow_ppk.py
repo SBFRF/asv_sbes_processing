@@ -243,7 +243,14 @@ class TestMainFunction:
 
 
 class TestParameterValidation:
-    """Tests for parameter validation"""
+    """Tests for parameter validation
+
+    TODO: FIXME - These tests have the same problems as the sonar_method tests:
+    - Overly broad try/except that masks real failures
+    - Don't validate that parameters are actually used correctly
+    - Don't assert on expected behavior
+    - Need proper mocking and sample data to test real workflow
+    """
 
     @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
     @patch('workflow_ppk.os.makedirs')
@@ -281,6 +288,11 @@ class TestParameterValidation:
             pass
 
 
+# TODO: FIXME - This parametrized test has similar issues:
+# - Still uses try/except to mask non-ValueError exceptions
+# - Doesn't validate that valid sonar_methods actually work correctly
+# - main() will fail for other reasons (missing data files, dependencies)
+# - Should test with real sample data and assert on actual behavior
 @pytest.mark.parametrize("sonar_method,expected_valid", [
     ('default', True),
     ('instant', True),
