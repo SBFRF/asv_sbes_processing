@@ -1,6 +1,10 @@
 """
 Shared test fixtures and configuration for pytest
 """
+# IMPORTANT: Set matplotlib to non-interactive backend BEFORE any imports
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for CI
+
 import pytest
 import numpy as np
 import pandas as pd

@@ -5,7 +5,11 @@ from scipy import interpolate, signal
 
 import py2netCDF
 
-matplotlib.use('TkAgg')
+# Use TkAgg for interactive plotting, but fall back to Agg for headless environments (CI/testing)
+try:
+    matplotlib.use('TkAgg')
+except (ImportError, ModuleNotFoundError):
+    matplotlib.use('Agg')  # Non-interactive backend for CI/headless environments
 import yellowfinLib
 import datetime as DT
 from matplotlib import pyplot as plt
