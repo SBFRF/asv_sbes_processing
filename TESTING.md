@@ -76,15 +76,22 @@ The ASV SBES processing pipeline contains several categories of code that are ch
 - Sonar method selection
 ```
 
-### ✅ NetCDF Operations
+### ✅ NetCDF Operations (Partial)
 
 ```python
-# py2netCDF.py functions:
-- import_template_file()    # YAML template loading
-- init_nc_file()           # NetCDF initialization
-- write_data_to_nc()       # Data writing
-- readNetCDFfile()         # Reading existing files
+# py2netCDF.py - Unit tests (working):
+- import_template_file()    # YAML template loading with real production YAMLs
+
+# Integration tests (need real data):
+- init_nc_file()           # NetCDF initialization (HDF5 environment issues)
+- write_data_to_nc()       # Data writing (requires sample survey data)
+- readNetCDFfile()         # Reading existing files (requires sample files)
+- makenc_generic()         # Full workflow (should use real bathymetric data)
 ```
+
+**Note:** NetCDF creation tests currently fail with HDF5 errors. These should be
+rewritten as integration tests using real sample bathymetric survey data instead
+of mock data. See `tests/test_py2netCDF.py` header comments for details.
 
 ## Running Tests
 

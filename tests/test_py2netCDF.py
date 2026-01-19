@@ -1,6 +1,25 @@
 """
-Unit tests for py2netCDF.py
-Tests netCDF file creation and manipulation functions
+Tests for py2netCDF.py
+
+This file contains both unit tests and integration tests:
+
+UNIT TESTS (currently passing):
+- YAML template loading (TestImportTemplateFile)
+- Basic netCDF initialization (TestInitNcFile - some tests)
+
+INTEGRATION TESTS (currently disabled due to HDF5 issues):
+- Full netCDF file creation (TestMakencGeneric)
+- Data writing and validation (TestWriteDataToNc, TestReadNetCDFFile)
+
+TODO: Before re-enabling integration tests (currently causing HDF5 errors):
+1. Add sample data files to tests/data/ directory:
+   - Small bathymetric survey dataset (sonar .dat, NMEA .dat, PPK .pos)
+   - Pre-processed output examples for validation
+2. Replace mock fixtures with real data loaders
+3. Test against actual survey data workflow, not synthetic mocks
+4. These tests belong in an integration test suite, not unit tests
+
+See TESTING.md for guidance on adding sample data files.
 """
 import pytest
 import numpy as np
@@ -88,6 +107,12 @@ class TestInitNcFile:
 
         fid.close()
 
+
+# ============================================================================
+# INTEGRATION TESTS - Require sample data, currently disabled
+# These tests fail with HDF5 errors and should be rewritten as integration
+# tests using real sample data files instead of mocks.
+# ============================================================================
 
 class TestCreateDimensions:
     """Tests for _createDimensions function"""
