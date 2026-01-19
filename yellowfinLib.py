@@ -1179,15 +1179,42 @@ def add_basemap_imagery(ax, attribution_size=6):
             return False
 
 def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out, lat_out, lon_out, timeString, idxDataToSave, FRF, margin=0.1):
+        """Create plan view plot of bathymetric data over satellite basemap imagery.
+
+        IMPORTANT: This function is for VISUALIZATION ONLY. Input coordinate arrays are NOT modified.
+        Data product files retain original EPSG:4326 (lat/lon) coordinates. Web Mercator transformation
+        is only used internally for rendering basemap imagery.
+
+        Args:
+            ofname: output filename for saved plot (PNG)
+            T_ppk: PPK trajectory dataframe with 'lon', 'lat' columns
+            bad_lon_out: longitude array of bad sonar data points
+            bad_lat_out: latitude array of bad sonar data points
+            elevation_out: NAVD88 elevation array
+            lat_out: latitude array of survey data (EPSG:4326)
+            lon_out: longitude array of survey data (EPSG:4326)
+            timeString: date string for plot title (YYYYMMDD format)
+            idxDataToSave: boolean/integer index array for valid data points
+            FRF: boolean flag indicating if survey is local to FRF
+            margin: colorbar margin as fraction of elevation range (default=0.1)
+
+        Returns:
+            None (saves plot to ofname)
+        """
         fs = 16
         # make a final plot of all the processed data
         pierStart = geoprocess.FRFcoord(0, 515, coordType='FRF')
         pierEnd = geoprocess.FRFcoord(534, 515, coordType='FRF')
 
+        # IMPORTANT: Transform coordinates for VISUALIZATION ONLY
+        # This transformation does NOT affect the data product - original lat/lon/elevation
+        # data remains in EPSG:4326 and is saved to the output file unchanged.
+        # Web Mercator (EPSG:3857) is required only for proper basemap rendering.
+
         # Create transformer for converting lat/lon (EPSG:4326) to Web Mercator (EPSG:3857)
         transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
 
-        # Transform coordinates to Web Mercator for contextily basemap
+        # Transform coordinates to Web Mercator for visualization (creates new variables, doesn't modify inputs)
         x_out, y_out = transformer.transform(lon_out, lat_out)
         x_ppk, y_ppk = transformer.transform(T_ppk['lon'], T_ppk['lat'])
         x_bad, y_bad = transformer.transform(bad_lon_out, bad_lat_out)
