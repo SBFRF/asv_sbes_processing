@@ -42,7 +42,8 @@ def parse_args(__version__):
     # Command-Line Interface: (OPTIONAL) Flags
     parser.add_argument('-g', '--geoid_file', type=str, default='ref/g2012bu0.bin', metavar='',
                         help="binary geoid file, required for conversion of ellipsoid height to NAVD88")
-    parser.add_argument('-p', '--make_pos', action=argparse.BooleanOptionalAction, type=bool, default=False,
+    # Python 3.8 compatible boolean argument (BooleanOptionalAction added in 3.9)
+    parser.add_argument('-p', '--make_pos', action='store_true', default=False,
                         help="make posfile (True) using RTKlib or provide one through external environment (false)")
     parser.add_argument('-v', '--verbosity', type=int, default=2, metavar='',
                         help='sets verbosity for debug, 1=Debug (most), 2=Info (normal), 3=Warning (least)')
