@@ -23,7 +23,7 @@ class TestImportTemplateFile:
         assert isinstance(result, dict)
         assert 'title' in result
         assert 'institution' in result
-        assert result['institution'] == 'USACE'
+        assert result['institution'] == 'USACE/CHL/COAB'
 
     def test_import_yaml_variables(self, sample_yaml_variables):
         """Test loading variables YAML"""
@@ -33,6 +33,11 @@ class TestImportTemplateFile:
         assert '_variables' in result
         assert '_dimensions' in result
         assert 'time' in result
+        # Verify all 12 variables from transect_variables.yml are present
+        expected_vars = ['time', 'date', 'Latitude', 'Longitude', 'Northing',
+                        'Easting', 'xFRF', 'yFRF', 'Elevation',
+                        'Profile_number', 'Survey_number', 'Ellipsoid']
+        assert result['_variables'] == expected_vars
 
 
 class TestInitNcFile:
@@ -263,17 +268,22 @@ class TestMakencGeneric:
 
         assert os.path.exists(nc_file)
 
-        # Verify file contents
+        # Verify file contents with real YAML structure
         with nc.Dataset(str(nc_file), 'r') as fid:
             assert 'time' in fid.dimensions
             assert 'time' in fid.variables
-            assert 'latitude' in fid.variables
-            assert 'longitude' in fid.variables
-            assert 'elevation' in fid.variables
+            # Check for capitalized variable names from real YAML
+            assert 'Latitude' in fid.variables
+            assert 'Longitude' in fid.variables
+            assert 'Elevation' in fid.variables
+            # Check a few more variables from the real template
+            assert 'xFRF' in fid.variables
+            assert 'yFRF' in fid.variables
 
-            # Check global attributes
+            # Check global attributes from real YAML
             assert hasattr(fid, 'title')
-            assert fid.title == 'Test Survey'
+            assert hasattr(fid, 'institution')
+            assert fid.institution == 'USACE/CHL/COAB'
 
     def test_makenc_generic_data_integrity(self, temp_dir, sample_yaml_global, sample_yaml_variables, mock_netcdf_data):
         """Test that data is written correctly"""

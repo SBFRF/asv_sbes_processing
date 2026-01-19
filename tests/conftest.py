@@ -112,64 +112,17 @@ def sample_h5_dict():
 
 
 @pytest.fixture
-def sample_yaml_global(temp_dir):
-    """Create sample global YAML for netCDF"""
-    fname = temp_dir / "global.yml"
-    data = {
-        'title': 'Test Survey',
-        'institution': 'USACE',
-        'source': 'ASV Yellowfin',
-        'conventions': 'CF-1.8',
-        'summary': 'Test bathymetric survey'
-    }
-    with open(fname, 'w') as f:
-        yaml.dump(data, f)
-    return str(fname)
+def sample_yaml_global():
+    """Return path to actual global YAML template for netCDF"""
+    # Use the real production YAML file instead of creating a mock
+    return 'yamlFile/transect_global.yml'
 
 
 @pytest.fixture
-def sample_yaml_variables(temp_dir):
-    """Create sample variables YAML for netCDF"""
-    fname = temp_dir / "variables.yml"
-    data = {
-        '_variables': ['time', 'latitude', 'longitude', 'elevation'],
-        '_dimensions': ['time'],
-        'time': {
-            'name': 'time',
-            'data_type': 'f8',
-            'dim': ['time'],
-            'units': 'seconds since 1970-01-01 00:00:00',
-            'standard_name': 'time',
-            'long_name': 'time'
-        },
-        'latitude': {
-            'name': 'latitude',
-            'data_type': 'f8',
-            'dim': ['time'],
-            'units': 'degrees_north',
-            'standard_name': 'latitude',
-            'long_name': 'latitude'
-        },
-        'longitude': {
-            'name': 'longitude',
-            'data_type': 'f8',
-            'dim': ['time'],
-            'units': 'degrees_east',
-            'standard_name': 'longitude',
-            'long_name': 'longitude'
-        },
-        'elevation': {
-            'name': 'elevation',
-            'data_type': 'f8',
-            'dim': ['time'],
-            'units': 'm',
-            'standard_name': 'height_above_reference_ellipsoid',
-            'long_name': 'elevation NAVD88'
-        }
-    }
-    with open(fname, 'w') as f:
-        yaml.dump(data, f)
-    return str(fname)
+def sample_yaml_variables():
+    """Return path to actual variables YAML template for netCDF"""
+    # Use the real production YAML file instead of creating a mock
+    return 'yamlFile/transect_variables.yml'
 
 
 @pytest.fixture
@@ -213,11 +166,21 @@ def mock_pos_file(temp_dir):
 
 @pytest.fixture
 def mock_netcdf_data():
-    """Sample data dictionary for netCDF creation"""
+    """Sample data dictionary for netCDF creation matching transect_variables.yml"""
     n_points = 100
+    # All 12 variables from the real transect_variables.yml file
+    # Note: 'date' is f8 (float64) representing seconds since 1970-01-01, not a string
     return {
         'time': np.linspace(1692100000, 1692110000, n_points),
-        'latitude': np.random.uniform(35.0, 35.1, n_points),
-        'longitude': np.random.uniform(-75.1, -75.0, n_points),
-        'elevation': np.random.uniform(-5, 0, n_points),
+        'date': np.linspace(1692100000, 1692110000, n_points),  # Same as time for simplicity
+        'Latitude': np.random.uniform(35.0, 35.1, n_points),
+        'Longitude': np.random.uniform(-75.1, -75.0, n_points),
+        'Northing': np.random.uniform(3875000, 3876000, n_points),
+        'Easting': np.random.uniform(432000, 433000, n_points),
+        'xFRF': np.random.uniform(900, 1000, n_points),
+        'yFRF': np.random.uniform(900, 1000, n_points),
+        'Elevation': np.random.uniform(-5, 0, n_points),
+        'Profile_number': np.ones(n_points, dtype=np.int32),
+        'Survey_number': np.ones(n_points, dtype=np.int32),
+        'Ellipsoid': np.array(['WGS84'] * n_points, dtype='S10'),
     }
