@@ -1182,12 +1182,18 @@ def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out,
         if FRF == True:
             ax.plot(x_pier_transformed, y_pier_transformed, 'k-', lw=5, label='FRF pier', zorder=4)
 
-        # Add satellite imagery basemap
+        # Add basemap imagery (using open USGS aerial imagery)
         try:
-            ctx.add_basemap(ax, source=ctx.providers.Esri.WorldImagery, attribution_size=6)
+            # Use USGS aerial imagery as an open alternative to ESRI products
+            ctx.add_basemap(ax, source=ctx.providers.USGS.USImageryTopo, attribution_size=6)
         except Exception as e:
-            print(f"Warning: Could not add satellite basemap: {e}")
-            # Continue without basemap if there's an error
+            print(f"Warning: Could not add basemap imagery: {e}")
+            # If USGS fails, try OpenStreetMap as fallback
+            try:
+                ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, attribution_size=6)
+            except Exception as e2:
+                print(f"Warning: Could not add OpenStreetMap basemap: {e2}")
+                # Continue without basemap if both fail
 
         ax.set_ylabel('latitude', fontsize=fs)
         ax.set_xlabel('longitude', fontsize=fs)
