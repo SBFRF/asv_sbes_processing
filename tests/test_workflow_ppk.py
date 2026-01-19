@@ -148,6 +148,18 @@ class TestMainFunction:
         # Verify makedirs was called
         mock_makedirs.assert_called()
 
+    # TODO: FIXME before re-enabling test_workflow_ppk.py
+    # These sonar_method tests are poorly written and need to be rewritten:
+    # 1. They catch all exceptions with try/except pass, masking real failures
+    # 2. They don't properly mock the dependencies, so main() will fail for other reasons
+    # 3. They don't assert on the actual behavior - just "didn't raise ValueError"
+    # 4. They need proper fixtures with sample data files to test real workflow
+    #
+    # Before removing this file from pytest.ini --ignore list:
+    # - Add proper mock data (sonar .dat, NMEA .dat, PPK .pos files)
+    # - Mock or provide all required dependencies (geoid file, RTKlib, etc.)
+    # - Assert on specific expected behavior (function calls, file creation, etc.)
+    # - Remove overly broad try/except blocks
     @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
     @patch('workflow_ppk.yellowfinLib.loadSonar_s500_binary')
     @patch('workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files')
