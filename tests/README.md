@@ -154,6 +154,24 @@ For these functions, we test:
 - Input validation
 - That mocked versions work correctly
 
+### Interactive Matplotlib Features
+
+**Important:** The production workflow (`workflow_ppk.py`) uses matplotlib's TkAgg backend for interactive features:
+- User clicking points on plots (`ginput()`)
+- Interactive transect selection
+- Real-time QA/QC plots with user interaction
+
+**In CI/Testing:** The code gracefully falls back to the Agg (non-interactive) backend when TkAgg is unavailable:
+```python
+# workflow_ppk.py
+try:
+    matplotlib.use('TkAgg')  # Required for interactive plotting
+except (ImportError, ModuleNotFoundError):
+    matplotlib.use('Agg')    # Fallback for CI/testing
+```
+
+Additionally, CI sets `MPLBACKEND=Agg` environment variable to ensure non-interactive backend.
+
 ## Troubleshooting
 
 ### Import Errors

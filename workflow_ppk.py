@@ -5,11 +5,13 @@ from scipy import interpolate, signal
 
 import py2netCDF
 
-# Use TkAgg for interactive plotting, but fall back to Agg for headless environments (CI/testing)
+# IMPORTANT: TkAgg backend is required for interactive features in production workflow
+# (e.g., ginput() for transect selection, interactive QA/QC plots)
+# Fall back to Agg only in headless CI/test environments where tkinter is unavailable
 try:
-    matplotlib.use('TkAgg')
+    matplotlib.use('TkAgg')  # Required for interactive plotting features
 except (ImportError, ModuleNotFoundError):
-    matplotlib.use('Agg')  # Non-interactive backend for CI/headless environments
+    matplotlib.use('Agg')  # Fallback for headless CI/testing environments
 import yellowfinLib
 import datetime as DT
 from matplotlib import pyplot as plt
