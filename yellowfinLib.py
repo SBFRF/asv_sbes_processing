@@ -1139,6 +1139,36 @@ def plot_planview_FRF(ofname, coords, gnss_out, antenna_offset, elevation_out, s
         plt.tight_layout()
         plt.savefig(ofname)
 
+def add_basemap_imagery(ax, attribution_size=6):
+    """Add basemap imagery to a matplotlib axis using open data sources.
+
+    Args:
+        ax: matplotlib axis object to add basemap to
+        attribution_size: font size for attribution text (default=6)
+
+    Returns:
+        bool: True if basemap was successfully added, False otherwise
+
+    Notes:
+        - Primary source: USGS aerial imagery (US Geological Survey)
+        - Fallback source: OpenStreetMap
+        - Coordinates must be in Web Mercator projection (EPSG:3857)
+    """
+    try:
+        # Use USGS aerial imagery as primary open data source
+        ctx.add_basemap(ax, source=ctx.providers.USGS.USImageryTopo, attribution_size=attribution_size)
+        return True
+    except Exception as e:
+        print(f"Warning: Could not add USGS basemap imagery: {e}")
+        # If USGS fails, try OpenStreetMap as fallback
+        try:
+            ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, attribution_size=attribution_size)
+            return True
+        except Exception as e2:
+            print(f"Warning: Could not add OpenStreetMap basemap: {e2}")
+            # Continue without basemap if both fail
+            return False
+
 def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out, lat_out, lon_out, timeString, idxDataToSave, FRF, margin=0.1):
         fs = 16
         # make a final plot of all the processed data
@@ -1182,18 +1212,8 @@ def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out,
         if FRF == True:
             ax.plot(x_pier_transformed, y_pier_transformed, 'k-', lw=5, label='FRF pier', zorder=4)
 
-        # Add basemap imagery (using open USGS aerial imagery)
-        try:
-            # Use USGS aerial imagery as an open alternative to ESRI products
-            ctx.add_basemap(ax, source=ctx.providers.USGS.USImageryTopo, attribution_size=6)
-        except Exception as e:
-            print(f"Warning: Could not add basemap imagery: {e}")
-            # If USGS fails, try OpenStreetMap as fallback
-            try:
-                ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, attribution_size=6)
-            except Exception as e2:
-                print(f"Warning: Could not add OpenStreetMap basemap: {e2}")
-                # Continue without basemap if both fail
+        # Add basemap imagery using helper function
+        add_basemap_imagery(ax, attribution_size=6)
 
         ax.set_ylabel('latitude', fontsize=fs)
         ax.set_xlabel('longitude', fontsize=fs)
