@@ -1153,20 +1153,29 @@ def add_basemap_imagery(ax, attribution_size=6):
         - Primary source: USGS aerial imagery (US Geological Survey)
         - Fallback source: OpenStreetMap
         - Coordinates must be in Web Mercator projection (EPSG:3857)
+        - Works offline: Plot will be generated without basemap if network unavailable
+        - All exceptions are caught to ensure plot generation continues
     """
     try:
         # Use USGS aerial imagery as primary open data source
         ctx.add_basemap(ax, source=ctx.providers.USGS.USImageryTopo, attribution_size=attribution_size)
         return True
     except Exception as e:
-        print(f"Warning: Could not add USGS basemap imagery: {e}")
+        # Primary source failed - could be offline, network issue, or service unavailable
+        print(f"Warning: Could not fetch USGS basemap imagery (possibly offline or network issue)")
+        print(f"  Details: {e}")
+
         # If USGS fails, try OpenStreetMap as fallback
         try:
             ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, attribution_size=attribution_size)
+            print("Successfully added OpenStreetMap basemap as fallback")
             return True
         except Exception as e2:
-            print(f"Warning: Could not add OpenStreetMap basemap: {e2}")
-            # Continue without basemap if both fail
+            # Both sources failed - likely offline or no network connection
+            print(f"Warning: Could not fetch OpenStreetMap basemap (possibly offline or network issue)")
+            print(f"  Details: {e2}")
+            print("Continuing without basemap imagery - plot will show data only")
+            # Continue without basemap if both fail - this is expected behavior offline
             return False
 
 def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out, lat_out, lon_out, timeString, idxDataToSave, FRF, margin=0.1):
