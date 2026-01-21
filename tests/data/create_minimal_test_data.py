@@ -2,9 +2,8 @@
 """
 Extract minimal test data from median time point of full survey.
 
-This script processes a full PPK survey file and extracts a 30-second window
-centered on the median time point. The extracted data is anonymized by shifting
-coordinates +1.0 degrees in latitude and longitude.
+This script processes a full PPK survey file and extracts a 1-minute window
+centered on the median time point.
 
 Usage:
     python create_minimal_test_data.py
@@ -13,7 +12,7 @@ Input:
     tests/data/full_survey.pos - Full PPK survey data (RTKlib format)
 
 Output:
-    tests/data/sample_survey_minimal/ppk/20231109.pos - Minimal test data (~300 lines)
+    tests/data/sample_survey_minimal/ppk/20231109.pos - Minimal test data (~600 lines)
 """
 
 from pathlib import Path
@@ -44,46 +43,28 @@ def parse_ppk_timestamp(line):
         return None
 
 
-def anonymize_ppk_line(line, lat_offset=1.0, lon_offset=1.0):
+def validate_ppk_line(line):
     """
-    Anonymize a PPK data line by shifting coordinates.
+    Validate a PPK data line format.
 
     Args:
-        line: Original PPK data line
-        lat_offset: Latitude offset in degrees (default: +1.0)
-        lon_offset: Longitude offset in degrees (default: +1.0)
+        line: PPK data line to validate
 
     Returns:
-        Anonymized line with shifted coordinates
+        The original line if valid, otherwise returns the line unchanged
     """
-    parts = line.split()
-    if len(parts) < 4:
-        return line
-
-    # PPK format: date time lat lon height Q ns sdn sde sdu sdne sdeu sdun age ratio
-    # Indices:    0    1    2   3   4      5 6  7   8   9   10   11   12   13  14
-    try:
-        # Shift latitude (index 2) and longitude (index 3)
-        parts[2] = f"{float(parts[2]) + lat_offset:13.9f}"
-        parts[3] = f"{float(parts[3]) + lon_offset:14.9f}"
-
-        # Reconstruct line with original spacing
-        return f"{parts[0]} {parts[1]} {parts[2]} {parts[3]} {parts[4]:11s} {parts[5]:3s} {parts[6]:3s} {parts[7]:8s} {parts[8]:8s} {parts[9]:8s} {parts[10]:8s} {parts[11]:8s} {parts[12]:8s} {parts[13]:6s} {parts[14]}\n"
-    except (ValueError, IndexError):
-        return line
+    # Just return the line as-is (no anonymization needed)
+    return line
 
 
-def extract_minimal_ppk(input_file, output_file, duration_seconds=30,
-                       lat_offset=1.0, lon_offset=1.0):
+def extract_minimal_ppk(input_file, output_file, duration_seconds=60):
     """
     Extract minimal test data from median time point of PPK survey.
 
     Args:
         input_file: Path to full survey PPK file
         output_file: Path to output minimal PPK file
-        duration_seconds: Duration of extraction window (default: 30 seconds)
-        lat_offset: Latitude anonymization offset (default: +1.0 degrees)
-        lon_offset: Longitude anonymization offset (default: +1.0 degrees)
+        duration_seconds: Duration of extraction window (default: 60 seconds)
 
     Returns:
         tuple: (start_time, end_time) of extracted window
@@ -142,13 +123,12 @@ def extract_minimal_ppk(input_file, output_file, duration_seconds=30,
     print(f"  End:   {end_time}")
     print(f"  Duration: {duration_seconds} seconds")
 
-    # Extract and anonymize
+    # Extract data
     extracted = []
     for i, ts in enumerate(timestamps):
         if start_time <= ts <= end_time:
             line = data_lines[i]
-            anonymized = anonymize_ppk_line(line, lat_offset, lon_offset)
-            extracted.append(anonymized)
+            extracted.append(line)
 
     print(f"  Extracted: {len(extracted)} points")
 
@@ -162,7 +142,6 @@ def extract_minimal_ppk(input_file, output_file, duration_seconds=30,
             f.writelines(extracted)
 
     print(f"\nSaved to: {output_file}")
-    print(f"Coordinates anonymized: +{lat_offset}° lat, +{lon_offset}° lon")
 
     return start_time, end_time
 
@@ -184,22 +163,17 @@ def main():
     start_time, end_time = extract_minimal_ppk(
         input_file,
         output_file,
-        duration_seconds=30,
-        lat_offset=1.0,
-        lon_offset=1.0
+        duration_seconds=60
     )
 
     if start_time and end_time:
         print("\n" + "="*70)
-        print("Next Steps:")
+        print("Extraction Complete")
         print("="*70)
-        print(f"\nTime window for extracting other sensor data:")
+        print(f"\nExtracted time window:")
         print(f"  Start: {start_time}")
         print(f"  End:   {end_time}")
-        print("\nPlease provide the following files for the same survey:")
-        print("  1. NMEA GPS data (.dat file)")
-        print("  2. Sonar bathymetry data (.dat file)")
-        print("\nThese will be processed to extract matching time windows.")
+        print(f"  Duration: {(end_time - start_time).total_seconds():.1f} seconds")
     else:
         print("\nERROR: Extraction failed")
         sys.exit(1)

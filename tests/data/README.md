@@ -10,7 +10,7 @@ tests/data/
 ├── create_minimal_test_data.py  # Extraction script
 ├── sample_survey_minimal/       # Minimal test data (auto-generated)
 │   └── ppk/
-│       └── 20231109.pos         # 30-second PPK extract from median
+│       └── 20231109.pos         # 1-minute PPK extract from median
 ├── transect_global_attributes.yml      # Production YAML (for unit tests)
 └── transect_variables.yml              # Production YAML (for unit tests)
 ```
@@ -36,12 +36,14 @@ tests/data/
 
 **Data extraction strategy:**
 1. Find median timestamp in full survey
-2. Extract 30-second window (±15 seconds from median)
-3. Anonymize coordinates (+1.0° lat/lon offset)
-4. Ensure time-synchronized data across all sensors
+2. Extract 1-minute window (±30 seconds from median)
+3. Preserve original coordinates (no anonymization)
+4. Ensure time-synchronized data across all sensors (when added)
 
-**Required files:**
+**Current files:**
 - `sample_survey_minimal/ppk/20231109.pos` - PPK positions (RTK-processed GNSS)
+
+**Future files (to be added):**
 - `sample_survey_minimal/nmea/20231109.dat` - NMEA GPS sentences (TODO)
 - `sample_survey_minimal/sonar/20231109.dat` - Sonar bathymetry (TODO)
 
@@ -52,27 +54,25 @@ tests/data/
 ### ✅ Completed
 1. **Extraction script created** - `create_minimal_test_data.py`
 2. **PPK extraction logic working** - Successfully extracts median time window
-3. **Coordinate anonymization working** - Shifts coordinates +1.0°
+3. **Configuration updated** - 1-minute extraction window, no coordinate anonymization
 
 ### 🚧 In Progress
 1. **Full PPK file needed** - Current `full_survey.pos` only has 3 data points
    - Should have: ~6,600 points (11 minutes at 10 Hz)
    - Currently has: 3 points (header + start/median/end)
-   - Impact: Minimal file only has 1 point instead of ~300
+   - Impact: Minimal file only has 1 point instead of ~600
 
-2. **Target time window identified:**
-   - Start: `2023-11-09 12:38:23.900`
-   - End: `2023-11-09 12:38:53.900`
-   - Duration: 30 seconds
+2. **Target time window (to be updated with full file):**
+   - Approximate median: `2023-11-09 12:38:38.900`
+   - Expected extraction: ±30 seconds from median
+   - Duration: 60 seconds
+   - Expected output: ~600 data points
 
 ### 📋 Next Steps
 
 1. **Provide complete PPK file** - Replace `full_survey.pos` with full survey data
-2. **Provide NMEA file** - GPS data file for same survey (November 9, 2023)
-3. **Provide sonar file** - Bathymetry data for same survey
-4. **Create NMEA extraction script** - Extract matching time window
-5. **Create sonar extraction script** - Extract matching time window
-6. **Verify time synchronization** - Ensure all sensors have overlapping data
+2. **Run extraction** - Generate minimal PPK file with ~600 points
+3. **Future:** Add NMEA and sonar data extraction (separate task)
 
 ---
 
@@ -85,10 +85,9 @@ tests/data/
 **Process:**
 1. Parse all timestamps from full survey
 2. Sort timestamps and find median
-3. Calculate 30-second window around median (±15 seconds)
+3. Calculate 1-minute window around median (±30 seconds)
 4. Extract all points within window
-5. Anonymize coordinates by shifting +1.0° lat/lon
-6. Write output with original header intact
+5. Write output with original header and coordinates intact
 
 **Example output:**
 ```
@@ -102,14 +101,14 @@ Survey Information:
 Median Time: 2023-11-09 12:38:38.900000
 
 Extracting window:
-  Start: 2023-11-09 12:38:23.900000
-  End:   2023-11-09 12:38:53.900000
-  Extracted: ~300 points
+  Start: 2023-11-09 12:38:08.900000
+  End:   2023-11-09 12:39:08.900000
+  Extracted: ~600 points
 ```
 
-**Anonymization:**
-- Original: `36.184162052  -75.751438333`
-- Anonymized: `37.184162052  -74.751438333`
+**No anonymization:**
+- Coordinates preserved at actual survey location
+- Suitable for integration testing with real data
 
 ---
 
@@ -171,10 +170,10 @@ ls -lh tests/data/sample_survey_minimal/ppk/20231109.pos
 ### Expected Output Sizes
 
 With complete files:
-- PPK: ~30 KB (300 lines × ~100 bytes/line)
-- NMEA: ~50 KB (estimated, 30 seconds of GPS data)
-- Sonar: ~200 KB (estimated, 30 seconds of bathymetry)
-- **Total: <500 KB** (well under 1 MB target)
+- PPK: ~60 KB (600 lines × ~100 bytes/line)
+- NMEA: ~100 KB (estimated, 60 seconds of GPS data) - to be added
+- Sonar: ~400 KB (estimated, 60 seconds of bathymetry) - to be added
+- **Total: <600 KB** (well under 1 MB target)
 
 ---
 
