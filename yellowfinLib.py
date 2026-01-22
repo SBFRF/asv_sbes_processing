@@ -1203,8 +1203,9 @@ def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out,
         """
         fs = 16
         # make a final plot of all the processed data
-        pierStart = geoprocess.FRFcoord(0, 515, coordType='FRF')
-        pierEnd = geoprocess.FRFcoord(534, 515, coordType='FRF')
+        # FRF pier coordinates (commented out - redundant with satellite imagery showing pier)
+        # pierStart = geoprocess.FRFcoord(0, 515, coordType='FRF')
+        # pierEnd = geoprocess.FRFcoord(534, 515, coordType='FRF')
 
         # IMPORTANT: Transform coordinates for VISUALIZATION ONLY
         # This transformation does NOT affect the data product - original lat/lon/elevation
@@ -1218,9 +1219,10 @@ def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out,
         x_out, y_out = transformer.transform(lon_out, lat_out)
         x_ppk, y_ppk = transformer.transform(T_ppk['lon'], T_ppk['lat'])
         x_bad, y_bad = transformer.transform(bad_lon_out, bad_lat_out)
-        x_pier = [pierStart['Lon'], pierEnd['Lon']]
-        y_pier = [pierStart['Lat'], pierEnd['Lat']]
-        x_pier_transformed, y_pier_transformed = transformer.transform(x_pier, y_pier)
+        # Pier transformation (commented out - redundant with satellite imagery)
+        # x_pier = [pierStart['Lon'], pierEnd['Lon']]
+        # y_pier = [pierStart['Lat'], pierEnd['Lat']]
+        # x_pier_transformed, y_pier_transformed = transformer.transform(x_pier, y_pier)
 
         fig, ax = plt.subplots(figsize=(12, 8))
         min_elev = np.min(elevation_out[idxDataToSave])
@@ -1245,8 +1247,9 @@ def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out,
         cbar.set_label('NAVD88 Elevation [m]', fontsize=fs)
         ax.plot(x_ppk, y_ppk, 'k.', ms=0.25, label='vehicle trajectory', zorder=2)
         ax.plot(x_bad, y_bad, 'rx', ms=3, label='bad sonar data, good GPS', zorder=4)
-        if FRF == True:
-            ax.plot(x_pier_transformed, y_pier_transformed, 'k-', lw=5, label='FRF pier', zorder=4)
+        # FRF pier plotting (commented out - redundant with satellite imagery showing pier)
+        # if FRF == True:
+        #     ax.plot(x_pier_transformed, y_pier_transformed, 'k-', lw=5, label='FRF pier', zorder=4)
 
         # Add basemap imagery using helper function
         add_basemap_imagery(ax, attribution_size=6)
