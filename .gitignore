@@ -20,30 +20,43 @@ wheels/
 .installed.cfg
 *.egg
 
-# Testing
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-.tox/
-.nox/
-coverage.xml
-*.cover
-
 # IDEs
+# PyInstaller
+*.manifest
+*.spec
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
+# Unit test / coverage reports
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
 # OS
 .DS_Store
 Thumbs.db
 
-# Project specific
-*.h5
-*.nc
-*.pos
-*.dat
-ref/
