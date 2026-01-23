@@ -30,8 +30,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-cov pytest-mock coverage
-        pip install numpy pandas h5py netCDF4 scipy matplotlib pyyaml tqdm rasterio contextily wget
+        if [ -f requirements.txt ]; then
+          pip install -r requirements.txt || echo "Some requirements failed to install, continuing..."
+        fi
+        pip install numpy pandas h5py netCDF4 scipy matplotlib pyyaml tqdm rasterio contextily wget pyproj pygeodesy
         pip install git+https://github.com/SBFRF/testbedutils.git || echo "testbedutils install failed, continuing..."
+        pip install getdatatestbed || echo "getdatatestbed install failed, continuing..."
 
     - name: Run tests with pytest
       env:
