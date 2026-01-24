@@ -1223,7 +1223,15 @@ def qaqc_plot_all_data_in_time(ofname, sonarData, sonar_range, payloadGpsData, T
              label='L1 (only) GPS elev (MSL)')
     plt.plot([DT.datetime.utcfromtimestamp(i) for i in T_ppk['epochTime']], T_ppk['GNSS_elevation_NAVD88'], '.r',
              label='ppk elevation [NAVD88 m]')
-    plt.ylim([0, 10])
+    # Calculate y-axis limits from all data sources with padding
+    all_elevations = np.concatenate([
+        sonar_range,
+        payloadGpsData['altMSL'],
+        T_ppk['GNSS_elevation_NAVD88']
+    ])
+    ymin, ymax = np.nanmin(all_elevations), np.nanmax(all_elevations)
+    padding = (ymax - ymin) * 0.1 if ymax > ymin else 1.0
+    plt.ylim([ymin - padding, ymax + padding])
     plt.ylabel('elevation [m]')
     plt.xlabel('epoch time (s)')
     plt.legend()
