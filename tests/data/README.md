@@ -1,3 +1,31 @@
+**Minimal Test Data**: how to generate the reduced dataset used by tests
+
+- **Purpose**: store a small, overlapping subset of real files so CI and
+  local runs can exercise the full workflow without large binary blobs.
+
+- **Approach**: compute the median timestamp across all files in the
+  source folder (heuristics across HDF5, LLH, and RINEX). Then subset to a
+  short window around that median so the reduced files still overlap in time.
+
+- **Scripts**: see `tests/data/scripts/`:
+  - `compute_median_time.py` — compute median ISO timestamp from a folder
+  - `shrink_h5.py` — HDF5 subsetting by `time` dataset (first-dim slice)
+  - `shrink_netcdf.py` — netCDF/xarray-based subsetting (requires xarray)
+  - `shrink_rinex.py` — keep RINEX epoch blocks within time window
+  - `make_minimal_dataset.sh` — wrapper to run all shrinkers and write into
+    `tests/data/minimal/20231109` (default)
+
+- **Defaults**: window is +/-300 seconds around the median. Override with
+  `WINDOW_SECONDS` env var. To remove originals after generation set
+  `DELETE_ORIGINALS=1` (use with care; this script will obey your flag).
+
+- **CI / Large-data strategy**: keep `tests/data/minimal` in repo. Full
+  originals should be hosted externally (artifact server / cloud bucket) or
+  via Git LFS. CI jobs that need full-data can fetch them explicitly.
+
+- **Next steps**: run `tests/data/scripts/make_minimal_dataset.sh` locally to
+  generate `tests/data/minimal/20231109`. Review outputs and adjust
+  heuristics/window as needed.
 # Test Data Directory
 
 This directory contains test data files for unit and integration testing.
