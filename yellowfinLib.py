@@ -19,6 +19,10 @@ from matplotlib import pyplot as plt
 from rasterio import plot as rplt
 from testbedutils import geoprocess
 from scipy import signal
+import contextily as ctx
+from pyproj import Transformer
+from scipy.signal import correlate
+from pygeodesy import geoids
 
 def read_emlid_pos(fldrlistPPK, plot=False, saveFname=None):
     """read and parse multiple pos files in multiple folders provided
@@ -442,8 +446,6 @@ def convertEllipsoid2NAVD88(lats, lons, ellipsoids, geoidFile="g2012bu8.bin"):
     :param geoidFile: pull from https://geodesy.noaa.gov/GEOID/GEOID12B/GEOID12B_CONUS.shtml
     :return: NAVD88 values
     """
-    from pygeodesy import geoids
-
     assert (
         len(lons) == len(lats) == len(ellipsoids)
     ), "lons/lats/elipsoids need to be of same length"
@@ -614,7 +616,7 @@ def load_yellowfin_NMEA_files(fpath:str, saveFname: str, plotfname: str = False,
     if plotfname is not False:
         plt.figure(figsize=(12, 4))
         plt.subplot(121)
-        plt.plot(lon, lat, "-.")
+        plt.plot(lon, lat, ".")
         plt.subplot(122)
         # plt.plot(pc_time_gga, altWGS84, '.-')
         # plt.plot(pc_time_gga, geoSep, label='geoSep')
@@ -631,9 +633,6 @@ def findTimeShiftCrossCorr(signal1, signal2, sampleFreq=1):
     :param sampleFreq: sampling frequency, in HZ
     :return: phase lag in samples, phase lag in time
     """
-    import numpy as np
-    from scipy.signal import correlate
-
     assert len(signal1) == len(signal2), "signals need to be the same lenth"
     # load your time series data into two separate arrays, let's call them signal1 and signal2.
     # compute the cross-correlation between the two signals using the correlate function:
@@ -672,8 +671,6 @@ def loadLLHfiles(flderlistLLH):
 
 
 def butter_lowpass_filter(data, cutoff, fs, order):
-    from scipy import signal
-
     b, a = signal.butter(order, cutoff / fs / 2, "low", analog=False)
     output = signal.filtfilt(b, a, data)
 
@@ -1154,13 +1151,92 @@ def plot_planview_FRF(ofname, coords, gnss_out, antenna_offset, elevation_out, s
         plt.tight_layout()
         plt.savefig(ofname)
 
+def add_basemap_imagery(ax, attribution_size=6):
+    """Add basemap imagery to a matplotlib axis using open data sources.
+
+    Args:
+        ax: matplotlib axis object to add basemap to
+        attribution_size: font size for attribution text (default=6)
+
+    Returns:
+        bool: True if basemap was successfully added, False otherwise
+
+    Notes:
+        - Primary source: USGS aerial imagery (US Geological Survey)
+        - Fallback source: OpenStreetMap
+        - Coordinates must be in Web Mercator projection (EPSG:3857)
+        - Works offline: Plot will be generated without basemap if network unavailable
+        - All exceptions are caught to ensure plot generation continues
+    """
+    try:
+        # Use USGS aerial imagery as primary open data source
+        ctx.add_basemap(ax, source=ctx.providers.USGS.USImageryTopo, attribution_size=attribution_size)
+        return True
+    except Exception as e:
+        # Primary source failed - could be offline, network issue, or service unavailable
+        print(f"Warning: Could not fetch USGS basemap imagery (possibly offline or network issue)")
+        print(f"  Details: {e}")
+
+        # If USGS fails, try OpenStreetMap as fallback
+        try:
+            ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, attribution_size=attribution_size)
+            print("Successfully added OpenStreetMap basemap as fallback")
+            return True
+        except Exception as e2:
+            # Both sources failed - likely offline or no network connection
+            print(f"Warning: Could not fetch OpenStreetMap basemap (possibly offline or network issue)")
+            print(f"  Details: {e2}")
+            print("Continuing without basemap imagery - plot will show data only")
+            # Continue without basemap if both fail - this is expected behavior offline
+            return False
+
 def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out, lat_out, lon_out, timeString, idxDataToSave, FRF, margin=0.1):
+        """Create plan view plot of bathymetric data over satellite basemap imagery.
+
+        IMPORTANT: This function is for VISUALIZATION ONLY. Input coordinate arrays are NOT modified.
+        Data product files retain original EPSG:4326 (lat/lon) coordinates. Web Mercator transformation
+        is only used internally for rendering basemap imagery.
+
+        Args:
+            ofname: output filename for saved plot (PNG)
+            T_ppk: PPK trajectory dataframe with 'lon', 'lat' columns
+            bad_lon_out: longitude array of bad sonar data points
+            bad_lat_out: latitude array of bad sonar data points
+            elevation_out: NAVD88 elevation array
+            lat_out: latitude array of survey data (EPSG:4326)
+            lon_out: longitude array of survey data (EPSG:4326)
+            timeString: date string for plot title (YYYYMMDD format)
+            idxDataToSave: boolean/integer index array for valid data points
+            FRF: boolean flag indicating if survey is local to FRF
+            margin: colorbar margin as fraction of elevation range (default=0.1)
+
+        Returns:
+            None (saves plot to ofname)
+        """
         fs = 16
         # make a final plot of all the processed data
-        pierStart = geoprocess.FRFcoord(0, 515, coordType='FRF')
-        pierEnd = geoprocess.FRFcoord(534, 515, coordType='FRF')
+        # FRF pier coordinates (commented out - redundant with satellite imagery showing pier)
+        # pierStart = geoprocess.FRFcoord(0, 515, coordType='FRF')
+        # pierEnd = geoprocess.FRFcoord(534, 515, coordType='FRF')
 
-        plt.figure(figsize=(12, 8))
+        # IMPORTANT: Transform coordinates for VISUALIZATION ONLY
+        # This transformation does NOT affect the data product - original lat/lon/elevation
+        # data remains in EPSG:4326 and is saved to the output file unchanged.
+        # Web Mercator (EPSG:3857) is required only for proper basemap rendering.
+
+        # Create transformer for converting lat/lon (EPSG:4326) to Web Mercator (EPSG:3857)
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+
+        # Transform coordinates to Web Mercator for visualization (creates new variables, doesn't modify inputs)
+        x_out, y_out = transformer.transform(lon_out, lat_out)
+        x_ppk, y_ppk = transformer.transform(T_ppk['lon'], T_ppk['lat'])
+        x_bad, y_bad = transformer.transform(bad_lon_out, bad_lat_out)
+        # Pier transformation (commented out - redundant with satellite imagery)
+        # x_pier = [pierStart['Lon'], pierEnd['Lon']]
+        # y_pier = [pierStart['Lat'], pierEnd['Lat']]
+        # x_pier_transformed, y_pier_transformed = transformer.transform(x_pier, y_pier)
+
+        fig, ax = plt.subplots(figsize=(12, 8))
         min_elev = np.min(elevation_out[idxDataToSave])
         max_elev = np.max(elevation_out[idxDataToSave])
         diff_elev = max_elev - min_elev
@@ -1176,21 +1252,28 @@ def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out,
             # survey taken at an elevated location, add a margin of survey range (default 10%) to colorbar for readability
             vmax = max_elev+buffer
         vmin = min_elev-buffer
-        plt.scatter(lon_out[idxDataToSave], lat_out[idxDataToSave], c=elevation_out[idxDataToSave], 
-                    vmax=vmax, vmin=vmin, label='processed depths')
-        cbar = plt.colorbar()
+
+        scatter = ax.scatter(x_out[idxDataToSave], y_out[idxDataToSave], c=elevation_out[idxDataToSave],
+                    vmax=vmax, vmin=vmin, label='processed depths', zorder=3)
+        cbar = plt.colorbar(scatter, ax=ax)
         cbar.set_label('NAVD88 Elevation [m]', fontsize=fs)
-        plt.plot(T_ppk['lon'], T_ppk['lat'], 'k.', ms=0.25, label='vehicle trajectory')
-        plt.plot(bad_lon_out, bad_lat_out, 'rx', ms=3, label='bad sonar data, good GPS')
-        if FRF == True:
-            plt.plot([pierStart['Lon'], pierEnd['Lon']], [pierStart['Lat'], pierEnd['Lat']], 'k-', lw=5, label='FRF pier')
-        plt.ylabel('latitude', fontsize=fs)
-        plt.xlabel('longitude', fontsize=fs)
-        plt.title(f'final data with elevations {timeString}', fontsize=fs + 4)
+        ax.plot(x_ppk, y_ppk, 'k.', ms=0.25, label='vehicle trajectory', zorder=2)
+        ax.plot(x_bad, y_bad, 'rx', ms=3, label='bad sonar data, good GPS', zorder=4)
+        # FRF pier plotting (commented out - redundant with satellite imagery showing pier)
+        # if FRF == True:
+        #     ax.plot(x_pier_transformed, y_pier_transformed, 'k-', lw=5, label='FRF pier', zorder=4)
+
+        # Add basemap imagery using helper function
+        add_basemap_imagery(ax, attribution_size=6)
+
+        ax.set_ylabel('latitude', fontsize=fs)
+        ax.set_xlabel('longitude', fontsize=fs)
+        ax.set_title(f'final data with elevations {timeString}', fontsize=fs + 4)
         plt.tight_layout()
-        plt.legend()
-        plt.gca().ticklabel_format(useOffset=False, style='plain')
+        ax.legend()
+        ax.ticklabel_format(useOffset=False, style='plain')
         plt.savefig(ofname)
+        plt.close()
 
 def qaqc_post_sonar_time_shift(ofname, T_ppk, indsPPK, commonTime, ppkHeight_i, sonar_range_i, phaseLaginTime,
                                sonarData, sonarIndicies, sonar_range):

@@ -1,0 +1,24 @@
+# Core scientific computing
+numpy
+scipy
+pandas
+
+# Data I/O
+h5py
+netCDF4
+pyyaml
+rasterio
+
+# Plotting
+matplotlib
+
+# Utilities
+tqdm
+wget
+
+# Geospatial
+pygeodesy
+
+# FRF-specific
+testbedutils
+getdatatestbed
