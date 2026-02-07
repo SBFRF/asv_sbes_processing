@@ -11,6 +11,7 @@ rasterio
 
 # Plotting
 matplotlib
+contextily
 
 # Utilities
 tqdm
