@@ -19,10 +19,16 @@ from matplotlib import pyplot as plt
 from rasterio import plot as rplt
 from testbedutils import geoprocess
 from scipy import signal
-import contextily as ctx
 from pyproj import Transformer
 from scipy.signal import correlate
 from pygeodesy import geoids
+
+# Optional dependency for basemap imagery - visualization only
+try:
+    import contextily as ctx
+    HAS_CONTEXTILY = True
+except ImportError:
+    HAS_CONTEXTILY = False
 
 def read_emlid_pos(fldrlistPPK, plot=False, saveFname=None):
     """read and parse multiple pos files in multiple folders provided
@@ -1162,12 +1168,18 @@ def add_basemap_imagery(ax, attribution_size=6):
         bool: True if basemap was successfully added, False otherwise
 
     Notes:
+        - Requires optional 'contextily' package (install with: pip install contextily)
         - Primary source: USGS aerial imagery (US Geological Survey)
         - Fallback source: OpenStreetMap
         - Coordinates must be in Web Mercator projection (EPSG:3857)
         - Works offline: Plot will be generated without basemap if network unavailable
         - All exceptions are caught to ensure plot generation continues
     """
+    if not HAS_CONTEXTILY:
+        print("Info: contextily package not installed - continuing without basemap imagery")
+        print("  To enable basemap imagery, install with: pip install contextily")
+        return False
+    
     try:
         # Use USGS aerial imagery as primary open data source
         ctx.add_basemap(ax, source=ctx.providers.USGS.USImageryTopo, attribution_size=attribution_size)
