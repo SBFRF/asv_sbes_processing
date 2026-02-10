@@ -18,6 +18,7 @@ wget
 
 # Geospatial
 pygeodesy
+pyproj
 
 # FRF-specific
 testbedutils
