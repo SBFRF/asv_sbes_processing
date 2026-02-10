@@ -1,0 +1,13 @@
+# Testing dependencies
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+pytest-timeout>=2.1.0
+coverage>=7.2.0
+
+# Mocking and test utilities
+mock>=5.1.0
+freezegun>=1.2.2
+
+# Type checking (optional but recommended)
+mypy>=1.4.0

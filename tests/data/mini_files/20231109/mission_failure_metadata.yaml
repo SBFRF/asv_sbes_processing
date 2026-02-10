@@ -1,0 +1,11 @@
+# This is a YAML file containing a dictionary of user responses to the following questions about the mission:
+#     Was there any kind of mission failure? (y/n): 
+#     Enter category of mechanical failure -- 0=no mechanical failure, 1=something broke but mission was still accomplished, 2=vehicle rescue required: 
+#     Enter category of quality failure -- 0=no data failure, 1=data failure: 
+#     Enter category of condition failure -- 0=no conditions failure, 1=comms, 2=hydrodynamic (i.e. breakpoint), 3=environmental (i.e. biofouling): 
+condition_failure: ''
+data_quality_failure: ''
+mechanical_failure: ''
+mission_failure: n
+
+# Additional User Notes: Generated in non-interactive mode

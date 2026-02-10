@@ -1,0 +1,11 @@
+# This is a YAML file containing a dictionary of user responses to the following questions about the mission:
+#     Is this an FRF mission? (y/n): 
+#     Did you overlap any FRF survey lines? (y/n): 
+#     Did you repeat lines? (y/n): 
+#     How many times did you repeat lines? (enter a number): 
+frf: n
+overlap: n
+repeat: n
+repeat_count: ''
+
+# User Notes: Generated in non-interactive mode
