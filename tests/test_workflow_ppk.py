@@ -5,7 +5,7 @@ Tests command-line argument parsing and workflow utility functions
 import pytest
 import sys
 import logging
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import workflow_ppk
 
 

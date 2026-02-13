@@ -8,8 +8,8 @@ import pandas as pd
 import h5py
 import os
 import datetime as DT
-from unittest.mock import Mock, patch, MagicMock
-import tempfile
+from unittest.mock import Mock, patch
+
 
 import yellowfinLib
 
@@ -45,6 +45,7 @@ class TestReadEmlidPos:
 
         result = yellowfinLib.read_emlid_pos([folder], plot=False, saveFname=str(save_path))
 
+        assert isinstance(result, pd.DataFrame)
         assert os.path.exists(save_path)
 
     def test_read_emlid_pos_empty_folder(self, temp_dir):

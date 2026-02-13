@@ -4,11 +4,11 @@ These tests validate core functionality without environmental dependencies
 """
 import pytest
 import numpy as np
-import pandas as pd
+
 import datetime as DT
-import os
+
 import sys
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 # Import modules (with mocked dependencies from conftest)
 import yellowfinLib

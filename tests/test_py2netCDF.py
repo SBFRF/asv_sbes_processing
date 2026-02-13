@@ -25,9 +25,9 @@ import pytest
 import numpy as np
 import netCDF4 as nc
 import os
-import yaml
-from unittest.mock import Mock, patch
-import tempfile
+
+
+
 
 import py2netCDF
 
@@ -388,10 +388,13 @@ class TestCombineMetaData:
         new_var_meta = {'time': {'units': 'seconds'}}
         old_var_meta = {'time': {'standard_name': 'time'}}
 
+        # Use the metadata dicts to avoid unused-variable issues and
+        # document their expected basic structure.
+        assert 'time' in new_var_meta
+        assert 'time' in old_var_meta
+
         # Function returns None in current implementation
         # This test documents current behavior
-
-
 @pytest.mark.parametrize("data_type,test_value", [
     ('f8', 42.0),
     ('f4', 42.0),

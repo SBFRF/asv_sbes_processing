@@ -5,7 +5,7 @@ Tests YAML metadata file generation functions
 import pytest
 import os
 import yaml
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import mission_yaml_files
 
 
