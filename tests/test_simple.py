@@ -57,13 +57,13 @@ class TestUtilityFunctions:
         """Test FRF coordinate validation - local"""
         coords = {'yFRF': np.array([500, 1000, 1500])}
         result = yellowfinLib.is_local_to_FRF(coords)
-        assert result == True or result == np.True_
+        assert bool(result) is True
 
     def test_is_local_to_frf_false(self):
         """Test FRF coordinate validation - not local"""
         coords = {'yFRF': np.array([50000, 60000, 70000])}
         result = yellowfinLib.is_local_to_FRF(coords)
-        assert result == False or result == np.False_
+        assert bool(result) is False
 
 
 class TestSignalProcessing:
