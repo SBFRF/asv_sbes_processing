@@ -5,7 +5,13 @@ from scipy import interpolate, signal
 
 import py2netCDF
 
-matplotlib.use('TkAgg')
+# IMPORTANT: TkAgg backend is required for interactive features in production workflow
+# (e.g., ginput() for transect selection, interactive QA/QC plots)
+# Fall back to Agg only in headless CI/test environments where tkinter is unavailable
+try:
+    matplotlib.use('TkAgg')  # Required for interactive plotting features
+except (ImportError, ModuleNotFoundError):
+    matplotlib.use('Agg')  # Fallback for headless CI/testing environments
 import yellowfinLib
 import datetime as DT
 from matplotlib import pyplot as plt
@@ -36,8 +42,21 @@ def parse_args(__version__):
     # Command-Line Interface: (OPTIONAL) Flags
     parser.add_argument('-g', '--geoid_file', type=str, default='ref/g2012bu0.bin', metavar='',
                         help="binary geoid file, required for conversion of ellipsoid height to NAVD88")
-    parser.add_argument('-p', '--make_pos', action=argparse.BooleanOptionalAction, type=bool, default=False,
-                        help="make posfile (True) using RTKlib or provide one through external environment (false)")
+    # Python 3.8 compatible boolean arguments emulating BooleanOptionalAction (added in 3.9)
+    make_pos_group = parser.add_mutually_exclusive_group()
+    make_pos_group.add_argument(
+        '-p', '--make_pos',
+        dest='make_pos',
+        action='store_true',
+        help="make posfile (True) using RTKlib"
+    )
+    make_pos_group.add_argument(
+        '--no-make_pos',
+        dest='make_pos',
+        action='store_false',
+        help="do not make posfile; provide one through external environment"
+    )
+    parser.set_defaults(make_pos=False)
     parser.add_argument('-v', '--verbosity', type=int, default=2, metavar='',
                         help='sets verbosity for debug, 1=Debug (most), 2=Info (normal), 3=Warning (least)')
     parser.add_argument('--sonar_method', type=str, default='default',
