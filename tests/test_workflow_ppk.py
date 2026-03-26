@@ -14,7 +14,6 @@ class _SentinelException(Exception):
     """Raised by mocks to halt main() execution at a known point after
     the code under test has already run (e.g. after sonar_method validation).
     This avoids broad try/except blocks and lets tests assert precisely."""
-    pass
 
 
 class TestParseArgs:
@@ -217,8 +216,8 @@ class TestMainFunction:
             )
 
         # Verify makedirs was called with a path under the slash-stripped datadir
-        call_args = mock_makedirs.call_args[0][0]
-        assert call_args == os.path.join(str(temp_dir / "20230815"), 'figures')
+        expected_plot_dir = os.path.join(str(temp_dir / "20230815"), 'figures')
+        mock_makedirs.assert_called_once_with(expected_plot_dir, exist_ok=True)
 
 
 class TestParameterValidation:
