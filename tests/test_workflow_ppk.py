@@ -5,8 +5,16 @@ Tests command-line argument parsing and workflow utility functions
 import pytest
 import sys
 import logging
-from unittest.mock import patch
+import os
+from unittest.mock import patch, call
 import workflow_ppk
+
+
+class _SentinelException(Exception):
+    """Raised by mocks to halt main() execution at a known point after
+    the code under test has already run (e.g. after sonar_method validation).
+    This avoids broad try/except blocks and lets tests assert precisely."""
+    pass
 
 
 class TestParseArgs:
@@ -122,55 +130,39 @@ class TestSonarMethods:
 
 
 class TestMainFunction:
-    """Tests for main function (integration tests with mocking)"""
+    """Tests for main function (integration tests with mocking)
 
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.yellowfinLib.loadSonar_s500_binary')
-    @patch('workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files')
-    @patch('workflow_ppk.os.path.isfile')
+    Uses a sentinel exception pattern: mock a dependency that executes
+    *after* the code under test to raise _SentinelException, halting
+    main() at a known point.  If main() raises _SentinelException
+    (not ValueError or another error), the tested code path succeeded.
+    """
+
+    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery', side_effect=_SentinelException)
     @patch('workflow_ppk.os.makedirs')
-    def test_main_creates_directories(self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir):
+    def test_main_creates_directories(self, mock_makedirs, mock_argus, temp_dir):
         """Test that main function creates required directories"""
-        mock_isfile.return_value = True  # Pretend files exist
         datadir = str(temp_dir / "20230815")
 
-        try:
+        with pytest.raises(_SentinelException):
             workflow_ppk.main(
                 datadir=datadir,
                 geoid='ref/g2012bu0.bin',
                 makePos=False,
-                verbose=3  # Use WARNING to minimize output
+                verbose=3
             )
-        except Exception:
-            # Main function will fail because of missing files, but we're testing directory creation
-            pass
 
-        # Verify makedirs was called
-        mock_makedirs.assert_called()
+        # Verify makedirs was called with the figures directory
+        expected_plot_dir = os.path.join(datadir, 'figures')
+        mock_makedirs.assert_called_once_with(expected_plot_dir, exist_ok=True)
 
-    # TODO: FIXME before re-enabling test_workflow_ppk.py
-    # These sonar_method tests are poorly written and need to be rewritten:
-    # 1. They catch all exceptions with try/except pass, masking real failures
-    # 2. They don't properly mock the dependencies, so main() will fail for other reasons
-    # 3. They don't assert on the actual behavior - just "didn't raise ValueError"
-    # 4. They need proper fixtures with sample data files to test real workflow
-    #
-    # Before removing this file from pytest.ini --ignore list:
-    # - Add proper mock data (sonar .dat, NMEA .dat, PPK .pos files)
-    # - Mock or provide all required dependencies (geoid file, RTKlib, etc.)
-    # - Assert on specific expected behavior (function calls, file creation, etc.)
-    # - Remove overly broad try/except blocks
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.yellowfinLib.loadSonar_s500_binary')
-    @patch('workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files')
-    @patch('workflow_ppk.os.path.isfile')
-    @patch('workflow_ppk.os.makedirs')
-    def test_main_with_default_sonar_method(self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir):
-        """Test main function with default sonar method"""
-        mock_isfile.return_value = True
+    @patch('workflow_ppk.os.makedirs', side_effect=_SentinelException)
+    def test_main_with_default_sonar_method(self, mock_makedirs, temp_dir):
+        """Test main function accepts 'default' sonar method without ValueError"""
         datadir = str(temp_dir / "20230815")
 
-        try:
+        # _SentinelException proves we got past sonar_method validation (no ValueError)
+        with pytest.raises(_SentinelException):
             workflow_ppk.main(
                 datadir=datadir,
                 geoid='ref/g2012bu0.bin',
@@ -178,22 +170,15 @@ class TestMainFunction:
                 verbose=3,
                 sonar_method='default'
             )
-        except Exception:
-            pass
 
-        # If we got here without ValueError, sonar_method was accepted
+        mock_makedirs.assert_called_once()
 
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.yellowfinLib.loadSonar_s500_binary')
-    @patch('workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files')
-    @patch('workflow_ppk.os.path.isfile')
-    @patch('workflow_ppk.os.makedirs')
-    def test_main_with_instant_sonar_method(self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir):
-        """Test main function with instant sonar method"""
-        mock_isfile.return_value = True
+    @patch('workflow_ppk.os.makedirs', side_effect=_SentinelException)
+    def test_main_with_instant_sonar_method(self, mock_makedirs, temp_dir):
+        """Test main function accepts 'instant' sonar method without ValueError"""
         datadir = str(temp_dir / "20230815")
 
-        try:
+        with pytest.raises(_SentinelException):
             workflow_ppk.main(
                 datadir=datadir,
                 geoid='ref/g2012bu0.bin',
@@ -201,20 +186,14 @@ class TestMainFunction:
                 verbose=3,
                 sonar_method='instant'
             )
-        except Exception:
-            pass
 
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.yellowfinLib.loadSonar_s500_binary')
-    @patch('workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files')
-    @patch('workflow_ppk.os.path.isfile')
-    @patch('workflow_ppk.os.makedirs')
-    def test_main_with_invalid_sonar_method(self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir):
+        mock_makedirs.assert_called_once()
+
+    def test_main_with_invalid_sonar_method(self, temp_dir):
         """Test that invalid sonar method raises ValueError"""
-        mock_isfile.return_value = True
         datadir = str(temp_dir / "20230815")
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='acceptable sonar methods'):
             workflow_ppk.main(
                 datadir=datadir,
                 geoid='ref/g2012bu0.bin',
@@ -223,42 +202,34 @@ class TestMainFunction:
                 sonar_method='invalid_method'
             )
 
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
+    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery', side_effect=_SentinelException)
     @patch('workflow_ppk.os.makedirs')
     def test_main_datadir_slash_handling(self, mock_makedirs, mock_argus, temp_dir):
         """Test that trailing slash is removed from datadir"""
         datadir_with_slash = str(temp_dir / "20230815") + "/"
 
-        try:
+        with pytest.raises(_SentinelException):
             workflow_ppk.main(
                 datadir=datadir_with_slash,
                 geoid='ref/g2012bu0.bin',
                 makePos=False,
                 verbose=3
             )
-        except Exception:
-            pass
 
-        # If function handles it correctly, no error should occur from slash
+        # Verify makedirs was called with a path under the slash-stripped datadir
+        call_args = mock_makedirs.call_args[0][0]
+        assert call_args == os.path.join(str(temp_dir / "20230815"), 'figures')
 
 
 class TestParameterValidation:
-    """Tests for parameter validation
+    """Tests for parameter validation"""
 
-    TODO: FIXME - These tests have the same problems as the sonar_method tests:
-    - Overly broad try/except that masks real failures
-    - Don't validate that parameters are actually used correctly
-    - Don't assert on expected behavior
-    - Need proper mocking and sample data to test real workflow
-    """
-
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.os.makedirs')
-    def test_main_ppk_quality_threshold(self, mock_makedirs, mock_argus, temp_dir):
-        """Test PPK quality threshold parameter"""
+    @patch('workflow_ppk.os.makedirs', side_effect=_SentinelException)
+    def test_main_ppk_quality_threshold(self, mock_makedirs, temp_dir):
+        """Test PPK quality threshold parameter is accepted"""
         datadir = str(temp_dir / "20230815")
 
-        try:
+        with pytest.raises(_SentinelException):
             workflow_ppk.main(
                 datadir=datadir,
                 geoid='ref/g2012bu0.bin',
@@ -266,16 +237,15 @@ class TestParameterValidation:
                 verbose=3,
                 ppk_quality_threshold=2
             )
-        except Exception:
-            pass
 
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.os.makedirs')
-    def test_main_confidence_thresholds(self, mock_makedirs, mock_argus, temp_dir):
-        """Test sonar confidence threshold parameters"""
+        mock_makedirs.assert_called_once()
+
+    @patch('workflow_ppk.os.makedirs', side_effect=_SentinelException)
+    def test_main_confidence_thresholds(self, mock_makedirs, temp_dir):
+        """Test sonar confidence threshold parameters are accepted"""
         datadir = str(temp_dir / "20230815")
 
-        try:
+        with pytest.raises(_SentinelException):
             workflow_ppk.main(
                 datadir=datadir,
                 geoid='ref/g2012bu0.bin',
@@ -284,15 +254,10 @@ class TestParameterValidation:
                 instant_sonar_confidence=95,
                 smoothed_sonar_confidence=70
             )
-        except Exception:
-            pass
+
+        mock_makedirs.assert_called_once()
 
 
-# TODO: FIXME - This parametrized test has similar issues:
-# - Still uses try/except to mask non-ValueError exceptions
-# - Doesn't validate that valid sonar_methods actually work correctly
-# - main() will fail for other reasons (missing data files, dependencies)
-# - Should test with real sample data and assert on actual behavior
 @pytest.mark.parametrize("sonar_method,expected_valid", [
     ('default', True),
     ('instant', True),
@@ -305,31 +270,27 @@ def test_sonar_method_validation(temp_dir, sonar_method, expected_valid):
     """Parameterized test for sonar method validation"""
     datadir = str(temp_dir / "20230815")
 
-    with patch('workflow_ppk.yellowfinLib.threadGetArgusImagery'):
-        with patch('workflow_ppk.os.makedirs'):
-            if expected_valid:
-                try:
-                    workflow_ppk.main(
-                        datadir=datadir,
-                        geoid='ref/g2012bu0.bin',
-                        makePos=False,
-                        verbose=3,
-                        sonar_method=sonar_method
-                    )
-                except ValueError:
-                    pytest.fail(f"Valid sonar_method '{sonar_method}' raised ValueError")
-                except Exception:
-                    # Other exceptions are OK for this test
-                    pass
-            else:
-                with pytest.raises(ValueError):
-                    workflow_ppk.main(
-                        datadir=datadir,
-                        geoid='ref/g2012bu0.bin',
-                        makePos=False,
-                        verbose=3,
-                        sonar_method=sonar_method
-                    )
+    if expected_valid:
+        # _SentinelException on os.makedirs halts main() right after validation;
+        # if we see it instead of ValueError, the sonar_method was accepted.
+        with patch('workflow_ppk.os.makedirs', side_effect=_SentinelException):
+            with pytest.raises(_SentinelException):
+                workflow_ppk.main(
+                    datadir=datadir,
+                    geoid='ref/g2012bu0.bin',
+                    makePos=False,
+                    verbose=3,
+                    sonar_method=sonar_method
+                )
+    else:
+        with pytest.raises(ValueError, match='acceptable sonar methods'):
+            workflow_ppk.main(
+                datadir=datadir,
+                geoid='ref/g2012bu0.bin',
+                makePos=False,
+                verbose=3,
+                sonar_method=sonar_method
+            )
 
 
 @pytest.mark.parametrize("verbosity", [1, 2, 3])
