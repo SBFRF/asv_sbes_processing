@@ -6,7 +6,7 @@ import pytest
 import sys
 import logging
 import os
-from unittest.mock import patch, call
+from unittest.mock import patch
 import workflow_ppk
 
 
