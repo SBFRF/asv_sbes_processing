@@ -1703,7 +1703,6 @@ def plot_sonar_pick_cross_correlation_time(ofname, sonar_range):
     plt.subplot(211)
     plt.title("all data: select start/end point for measured depths to do time-syncing over ")
     plt.plot(sonar_range)
-    plt.ylim([0, 10])
     d = plt.ginput(2, timeout=-999)
     plt.subplot(212)
     # Now pull corresponding indices for sonar data for same time
