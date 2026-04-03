@@ -3,7 +3,7 @@
 processing:
   verbosity: 2           #  sets verbosity for debug, 1=Debug (most), 2=Info (normal), 3=Warning (least)')
   antenna_offset: 0.25   # vertical offset between GNSS antenna and sonar.
-  time_sync_method: default  # which s500 depth reading to use for time-shifting and bottom reporting, avialable "
+  sonar_method: default  # which s500 depth reading to use for time-shifting and bottom reporting, avialable "
                          #      "are ['default', 'smooth', 'instant']. default uses instant depth for time syncing and"
                          #      " smooth depths for final bathy out; 'smooth' uses smoothed values for both, 'instant' "
                          #      "uses instant values for both")
