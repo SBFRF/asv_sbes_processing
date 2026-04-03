@@ -617,15 +617,15 @@ def main(
     else:  # start argus download as soon as we know its FRF data
         logging.info("Identified data as local to the FRF")
         glob_argus_result = glob.glob(os.path.join(plotDir, "*rgus*.tif"))
-        if len(glob_argus_result) == 1:
+        if len(glob_argus_result) > 1:
             argusGeotiff = glob_argus_result[0]
         else:
-            argusGeotiff = None
-            # below was throwing errors
-            # argusGeotiff = yellowfinLib.threadGetArgusImagery(DT.datetime.strptime(timeString, '%Y%m%d') +
-            #                                                   DT.timedelta(hours=14),
-            #                                                   ofName=os.path.join(plotDir, f'Argus_{timeString}.tif'),
-            #                                                   imageType='timex')
+            argusGeotiff = yellowfinLib.threadGetArgusImagery(
+                DT.datetime.strptime(timeString, '%Y%m%d') + DT.timedelta(hours=14),
+                ofName=os.path.join(plotDir, f'Argus_{timeString}.tif'),
+                imageType='timex',
+                imageFormat='tif'
+            )
 
     ofname = os.path.join(plotDir, f"{timeString}_FinalDataProduct.png")
     yellowfinLib.plot_planview_lonlat(

@@ -8,6 +8,8 @@ import threading
 import time
 import logging
 import warnings
+import tempfile
+import requests
 
 import h5py
 import netCDF4 as nc
@@ -24,6 +26,7 @@ import contextily as ctx
 from pyproj import Transformer
 from scipy.signal import correlate
 from pygeodesy import geoids
+from posixpath import join as urljoin
 
 def read_emlid_pos(fldrlistPPK, plot=False, saveFname=None):
     """read and parse multiple pos files in multiple folders provided
@@ -1091,8 +1094,8 @@ def plot_planview_on_argus(data, geoTifName, ofName=None, argus_time_out_s=120):
             print(f"Timed out after {tt} seconds waiting for {geoTifName}. Image not found.")
             return
 
-        timex = rasterio.open(geoTifName)
-    # array = timex.read()  # for reference, this pulls the image data out of the geotiff object
+    timex = rasterio.open(geoTifName)
+
     ## now make plot
     plt.figure(figsize=(14, 10))
     ax1 = plt.subplot()
@@ -1110,9 +1113,14 @@ def plot_planview_on_argus(data, geoTifName, ofName=None, argus_time_out_s=120):
 
 
 def getArgusImagery(
-    dateOfInterest: DT, ofName: str = None, imageType: str = "timex", image_format: str = "tif", verbose: bool = True
-):
-    """this helper function gets argus imagery from CorpsCam to be used as background for plotting
+    dateOfInterest: DT, 
+    ofName: str = None, 
+    imageType: str = "timex", 
+    imageFormat: str = "tif", 
+    verbose: bool = True
+    ):
+    """
+    This helper function gets argus imagery from CorpsCam to be used as background for plotting.
 
     Args:
         dateOfInterest(type:datetime): hour/minute of image
@@ -1132,37 +1140,62 @@ def getArgusImagery(
     """
     if verbose:
         logging.basicConfig(level=logging.INFO)
-    # client = Minio("coastalimaging.erdc.dren.mil")
-    # ## now lets find what files are around
-    # objects = client.list_objects('FrfTower', prefix="Processed/alignedObliques/c1", recursive=True,)
-    baseURL = "https://coastalimaging.erdc.dren.mil/FrfTower/Processed/Orthophotos/cxgeo/"
+
+    # URL set-up
     fldr = dateOfInterest.strftime("%Y_%m_%d")
-    if image_format.lower() in ["tif", "geotiff"]:
+    baseURL = "https://coastalimaging.erdc.dren.mil/FrfTower/Processed/Orthophotos/"
+
+    if imageFormat.lower() in ["tif", "geotiff"]:
         camera_format = "cxgeo"
-    elif image_format.lower() in ["png", "frf", "jpg"]:
+        fname = f'{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.FrfTower.{camera_format}.{imageType}.{imageFormat}'
+        url = urljoin(baseURL, camera_format, fldr, fname)
+    elif imageFormat.lower() in ["png", "frf", "jpg"]:
         camera_format = "cx"
+        fname = f'{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.FrfTower.{camera_format}.{imageType}.{imageFormat}'
     else:
         raise NotImplementedError("Only available  ['png', 'frf', 'jpg'] or ['tif', 'geotiff'] ")
-    fname = f'{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.FrfTower.{camera_format}.{imageType}.tif'
 
-    logging.info(f"retreiving {baseURL + fldr + fname}")
-    wgetURL = os.path.join(baseURL, fldr, fname)
-    if ofName is None:
-        ofName = os.path.join(os.getcwd(), os.path.basename(wgetURL))
+    logging.info(f"retreiving {baseURL + camera_format + fldr + fname}")
+    url = urljoin(baseURL, camera_format, fldr, fname)
+
+    # Download the image
     try:
-        wget.download(wgetURL, ofName)
-    except:
-        pass
+        resp = requests.get(url, stream=True, timeout=120)
+        resp.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logging.warning(f"Failed to retrieve Argus imagery: {e}")
+        print(f"Failed to retrieve Argus imagery: {e}")
+        return None
+
+    if ofName is None:
+        ofName = os.path.join(os.getcwd(), f'Argus_{imageType}_{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.{imageFormat}')
+
+    with open(ofName, 'wb') as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                f.write(chunk)
 
     logging.debug(f"retrieved {ofName}")
     return ofName
 
 
-def threadGetArgusImagery(dateOfInterest, ofName=None, imageType="timex", verbose=True):
+def threadGetArgusImagery(dateOfInterest, ofName=None, imageType="timex", imageFormat="tif", verbose=True):
     if ofName is None:
-        ofName = os.path.join(os.getcwd(), f'Argus_{imageType}_{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.tif')
-    t = threading.Thread(target=getArgusImagery, args=[dateOfInterest, ofName, imageType, verbose], daemon=True)
+        ofName = os.path.join(os.getcwd(), f'Argus_{imageType}_{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.{imageFormat}')
+
+    t = threading.Thread(
+        target=getArgusImagery, 
+        kwargs={
+            'dateOfInterest': dateOfInterest,
+            'ofName': ofName,
+            'imageType': imageType,
+            'imageFormat': imageFormat,
+            'verbose': verbose,
+        },
+        daemon=True
+    ) 
+        
     t.start()
+
     return ofName
 
 
