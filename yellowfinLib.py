@@ -20,10 +20,10 @@ from matplotlib import pyplot as plt
 from rasterio import plot as rplt
 from testbedutils import geoprocess
 from scipy import signal
-import numpy as np
+import contextily as ctx
+from pyproj import Transformer
 from scipy.signal import correlate
-from scipy import signal
-
+from pygeodesy import geoids
 
 def read_emlid_pos(fldrlistPPK, plot=False, saveFname=None):
     """read and parse multiple pos files in multiple folders provided
@@ -668,9 +668,9 @@ def convertEllipsoid2NAVD88(lats, lons, ellipsoids, geoidFile="g2012bu8.bin"):
     :param geoidFile: pull from https://geodesy.noaa.gov/GEOID/GEOID12B/GEOID12B_CONUS.shtml
     :return: NAVD88 values
     """
-    from pygeodesy import geoids
-
-    assert len(lons) == len(lats) == len(ellipsoids), "lons/lats/elipsoids need to be of same length"
+    assert (
+        len(lons) == len(lats) == len(ellipsoids)
+    ), "lons/lats/elipsoids need to be of same length"
     try:
         instance = geoids.GeoidG2012B(geoidFile)
     except ImportError:
@@ -830,8 +830,6 @@ def load_yellowfin_NMEA_files(fpath: str, saveFname: str, plotfname: str = False
         plt.figure(figsize=(12, 4))
         plt.subplot(121)
         plt.plot(lon, lat, ".")
-        plt.ylabel('longitude')
-        plt.xlabel('latitude')
         plt.subplot(122)
         # plt.plot(pc_time_gga, altWGS84, '.-')
         # plt.plot(pc_time_gga, geoSep, label='geoSep')
@@ -851,7 +849,6 @@ def findTimeShiftCrossCorr(signal1, signal2, sampleFreq=1):
     :param sampleFreq: sampling frequency, in HZ
     :return: phase lag in samples, phase lag in time
     """
-
     assert len(signal1) == len(signal2), "signals need to be the same lenth"
     # load your time series data into two separate arrays, let's call them signal1 and signal2.
     # compute the cross-correlation between the two signals using the correlate function:
@@ -1070,12 +1067,13 @@ def unpackYellowfinCombinedRaw(fname):
     return data
 
 
-def plot_plan_view_on_argus(data, geoTifName, ofName=None):
+def plotPlanViewOnArgus(data, geoTifName, ofName=None, argus_time_out_s=120):
     """plots a survey path over a geotiff at the FRF (assumes NC stateplane)
     Args:
         data: this is a dictionary of data loaded with keys of 'longitude', 'latitude', 'elevation'
         geoTifName: this is a filenamepath of a geotiff file over which elevation and path data are to be overlayed
         ofname: this is the plot output save name/location (default=None)
+        argus_time_out_s: time to wait to pull argus imagery before timing out, in seconds (default=120)
 
     References
         https://pratiman-91.github.io/2020/06/30/Plotting-GeoTIFF-in-python.html
@@ -1083,11 +1081,15 @@ def plot_plan_view_on_argus(data, geoTifName, ofName=None):
     """
     coords = geoprocess.FRFcoord(data["Longitude"], data["Latitude"])
     tt = 0
-    if geoTifName is not None:
-        while not os.path.isfile(geoTifName):  # this is waiting for the file to show up, if the download is threaded
-            time.sleep(30)
-            tt += 30
-            print(f"waited for {tt} seconds for {geoTifName}")
+    while not os.path.isfile(
+        geoTifName
+    ):  # this is waiting for the file to show up, if the download is threaded
+        time.sleep(30)
+        tt += 30
+        print(f"waited for {tt} seconds for {geoTifName}")
+        if tt >= argus_time_out_s:
+            print(f"Timed out after {tt} seconds waiting for {geoTifName}. Image not found.")
+            return
 
         timex = rasterio.open(geoTifName)
     # array = timex.read()  # for reference, this pulls the image data out of the geotiff object
@@ -1189,6 +1191,9 @@ def transect_selection_tool(data, **kwargs):
     outputDir = kwargs.get("outputDir", os.getcwd())
     plotting = kwargs.get("savePlots", True)
     current_progress = kwargs.get("current_progress_plots", False)  # show a plot after selection of a line
+    # For date string in saved plot file name, convert UNIX timestamp → datetime → YYYYMMDD string
+    ts = DT.datetime.fromtimestamp(float(data['date'][0]), tz=DT.timezone.utc)
+    ts_yyyymmdd = ts.strftime("%Y%m%d")  # e.g., 20240716
     # added columns for isTransect boolean and profileNumber float to data dataframe
     data["isTransect"] = [False] * data.shape[0]
     data["profileNumber"] = [float("nan")] * data.shape[0]
@@ -1429,11 +1434,11 @@ def transect_selection_tool(data, **kwargs):
         plt.xlabel("xFRF (m)")
         plt.ylabel("yFRF (m)")
         cbar.set_label("Transect Number")
-        plt.title(f" Survey {DT.datetime.utcfromtimestamp(data['date'][0])}")
+        plt.title(f"Crawler Survey {ts_yyyymmdd}")
         plt.savefig(
             os.path.join(
                 outputDir,
-                f"Processed_linesWithNumbers_{DT.datetime.utcfromtimestamp(data['date'][0])}.png",
+                f"Processed_linesWithNumbers_{ts_yyyymmdd}.png",
             )
         )
         plt.close()
@@ -1451,11 +1456,13 @@ def transect_selection_tool(data, **kwargs):
         plt.xlabel("xFRF (m)")
         plt.ylabel("yFRF (m)")
         cbar.set_label("Profile Number")
-        plt.title(f"Identified Transects vs All Points\n{DT.datetime.utcfromtimestamp(data['date'][0])}")
+        plt.title(
+            f"Identified Transects vs All Points\n{ts_yyyymmdd}"
+        )
         plt.savefig(
             os.path.join(
                 outputDir,
-                f"Processed_linesWithAllData_{DT.datetime.utcfromtimestamp(data['date'][0])}.png",
+                f"Processed_linesWithAllData_{ts_yyyymmdd}.png",
             )
         )
         plt.close()
@@ -1486,39 +1493,156 @@ def plot_planview_FRF_with_profile(ofname, coords, instant_depths, smoothed_dept
     plt.tight_layout()
     plt.savefig(ofname)
 
+def plot_planview_FRF(ofname, coords, gnss_out, antenna_offset, elevation_out, sonar_instant_depth_out, sonar_smooth_depth_out, idxDataToSave):
 
-def plot_planview_lonlat(
-    ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out, lat_out, lon_out, timeString, idxDataToSave, FRF
-):
-    fs = 16
-    # make a final plot of all the processed data
-    pierStart = geoprocess.FRFcoord(0, 515, coordType="FRF")
-    pierEnd = geoprocess.FRFcoord(534, 515, coordType="FRF")
-    plt.close()
+    minloc = 800
+    maxloc = 1000
+    logic = (coords['yFRF'] > minloc) & (coords['yFRF'] < maxloc)
+
     plt.figure(figsize=(12, 8))
-    plt.scatter(
-        lon_out[idxDataToSave],
-        lat_out[idxDataToSave],
-        c=elevation_out[idxDataToSave],
-        vmax=-0.5,
-        label="processed depths",
-    )
+    plt.subplot(211)
+    plt.title('plan view of survey')
+    plt.scatter(coords['xFRF'], coords['yFRF'], c=elevation_out[idxDataToSave], vmax=-1)
     cbar = plt.colorbar()
-    cbar.set_label("depths NAVD88 [m]", fontsize=fs)
-    plt.plot(T_ppk["lon"], T_ppk["lat"], "k.", ms=0.25, label="vehicle trajectory")
-    plt.plot(bad_lon_out, bad_lat_out, "rx", ms=3, label="bad sonar data, good GNSS")
-    if FRF == True:
-        plt.plot([pierStart["Lon"], pierEnd["Lon"]], [pierStart["Lat"], pierEnd["Lat"]], "k-", lw=5, label="FRF pier")
-    plt.ylabel("latitude", fontsize=fs)
-    plt.xlabel("longitude", fontsize=fs)
-    plt.title(f"final data with elevations {timeString}", fontsize=fs + 4)
-    # plt.ylim([lat_out[idxDataToSave].min(), lat_out[idxDataToSave].max()])
-    # plt.xlim([lat_out[idxDataToSave].min(), lat_out[idxDataToSave].max()])
-    plt.tight_layout()
+    cbar.set_label('depth')
+    plt.subplot(212)
+    plt.title(f"profile at line y={np.median(coords['yFRF'][logic]).astype(int)}")
+    plt.plot(coords['xFRF'][logic],
+                gnss_out[idxDataToSave][logic] - antenna_offset - sonar_instant_depth_out[idxDataToSave][logic], '.',
+                label='instant depths')
+    plt.plot(coords['xFRF'][logic],
+                gnss_out[idxDataToSave][logic] - antenna_offset - sonar_smooth_depth_out[idxDataToSave][logic], '.',
+                label='smooth Depth')
+    plt.plot(coords['xFRF'][logic], elevation_out[idxDataToSave][logic], '.', label='chosen depths')
     plt.legend()
+    plt.xlabel('xFRF')
+    plt.ylabel('elevation NAVD88[m]')
+    plt.tight_layout()
     plt.savefig(ofname)
-    plt.close()
 
+def add_basemap_imagery(ax, attribution_size=6):
+    """Add basemap imagery to a matplotlib axis using open data sources.
+
+    Args:
+        ax: matplotlib axis object to add basemap to
+        attribution_size: font size for attribution text (default=6)
+
+    Returns:
+        bool: True if basemap was successfully added, False otherwise
+
+    Notes:
+        - Primary source: USGS aerial imagery (US Geological Survey)
+        - Fallback source: OpenStreetMap
+        - Coordinates must be in Web Mercator projection (EPSG:3857)
+        - Works offline: Plot will be generated without basemap if network unavailable
+        - All exceptions are caught to ensure plot generation continues
+    """
+    try:
+        # Use USGS aerial imagery as primary open data source
+        ctx.add_basemap(ax, source=ctx.providers.USGS.USImageryTopo, attribution_size=attribution_size)
+        return True
+    except Exception as e:
+        # Primary source failed - could be offline, network issue, or service unavailable
+        print(f"Warning: Could not fetch USGS basemap imagery (possibly offline or network issue)")
+        print(f"  Details: {e}")
+
+        # If USGS fails, try OpenStreetMap as fallback
+        try:
+            ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, attribution_size=attribution_size)
+            print("Successfully added OpenStreetMap basemap as fallback")
+            return True
+        except Exception as e2:
+            # Both sources failed - likely offline or no network connection
+            print(f"Warning: Could not fetch OpenStreetMap basemap (possibly offline or network issue)")
+            print(f"  Details: {e2}")
+            print("Continuing without basemap imagery - plot will show data only")
+            # Continue without basemap if both fail - this is expected behavior offline
+            return False
+
+def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out, lat_out, lon_out, timeString, idxDataToSave, FRF, margin=0.1):
+        """Create plan view plot of bathymetric data over satellite basemap imagery.
+
+        IMPORTANT: This function is for VISUALIZATION ONLY. Input coordinate arrays are NOT modified.
+        Data product files retain original EPSG:4326 (lat/lon) coordinates. Web Mercator transformation
+        is only used internally for rendering basemap imagery.
+
+        Args:
+            ofname: output filename for saved plot (PNG)
+            T_ppk: PPK trajectory dataframe with 'lon', 'lat' columns
+            bad_lon_out: longitude array of bad sonar data points
+            bad_lat_out: latitude array of bad sonar data points
+            elevation_out: NAVD88 elevation array
+            lat_out: latitude array of survey data (EPSG:4326)
+            lon_out: longitude array of survey data (EPSG:4326)
+            timeString: date string for plot title (YYYYMMDD format)
+            idxDataToSave: boolean/integer index array for valid data points
+            FRF: boolean flag indicating if survey is local to FRF
+            margin: colorbar margin as fraction of elevation range (default=0.1)
+
+        Returns:
+            None (saves plot to ofname)
+        """
+        fs = 16
+        # make a final plot of all the processed data
+        # FRF pier coordinates (commented out - redundant with satellite imagery showing pier)
+        # pierStart = geoprocess.FRFcoord(0, 515, coordType='FRF')
+        # pierEnd = geoprocess.FRFcoord(534, 515, coordType='FRF')
+
+        # IMPORTANT: Transform coordinates for VISUALIZATION ONLY
+        # This transformation does NOT affect the data product - original lat/lon/elevation
+        # data remains in EPSG:4326 and is saved to the output file unchanged.
+        # Web Mercator (EPSG:3857) is required only for proper basemap rendering.
+
+        # Create transformer for converting lat/lon (EPSG:4326) to Web Mercator (EPSG:3857)
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+
+        # Transform coordinates to Web Mercator for visualization (creates new variables, doesn't modify inputs)
+        x_out, y_out = transformer.transform(lon_out, lat_out)
+        x_ppk, y_ppk = transformer.transform(T_ppk['lon'], T_ppk['lat'])
+        x_bad, y_bad = transformer.transform(bad_lon_out, bad_lat_out)
+        # Pier transformation (commented out - redundant with satellite imagery)
+        # x_pier = [pierStart['Lon'], pierEnd['Lon']]
+        # y_pier = [pierStart['Lat'], pierEnd['Lat']]
+        # x_pier_transformed, y_pier_transformed = transformer.transform(x_pier, y_pier)
+
+        fig, ax = plt.subplots(figsize=(12, 8))
+        min_elev = np.min(elevation_out[idxDataToSave])
+        max_elev = np.max(elevation_out[idxDataToSave])
+        diff_elev = max_elev - min_elev
+        buffer = margin*diff_elev
+        if abs(max_elev) < 1:
+            # indicates a sea level survey, ceiling color map at 0.5m below 0m NAVD88 elevation
+            # we assume max_elev will not be significantly greater than 1m elevation
+            if max_elev > 0:
+                vmax = max_elev*1.1
+            else:
+                vmax = 0
+        else:
+            # survey taken at an elevated location, add a margin of survey range (default 10%) to colorbar for readability
+            vmax = max_elev+buffer
+        vmin = min_elev-buffer
+
+        scatter = ax.scatter(x_out[idxDataToSave], y_out[idxDataToSave], c=elevation_out[idxDataToSave],
+                    vmax=vmax, vmin=vmin, label='processed depths', zorder=3)
+        cbar = plt.colorbar(scatter, ax=ax)
+        cbar.set_label('NAVD88 Elevation [m]', fontsize=fs)
+        ax.plot(x_ppk, y_ppk, 'k.', ms=0.25, label='vehicle trajectory', zorder=2)
+        ax.plot(x_bad, y_bad, 'rx', ms=3, label='bad sonar data, good GPS', zorder=4)
+        # FRF pier plotting (commented out - redundant with satellite imagery showing pier)
+        # if FRF == True:
+        #     ax.plot(x_pier_transformed, y_pier_transformed, 'k-', lw=5, label='FRF pier', zorder=4)
+
+        # Add basemap imagery using helper function
+        add_basemap_imagery(ax, attribution_size=6)
+
+        ax.set_ylabel('latitude', fontsize=fs)
+        ax.set_xlabel('longitude', fontsize=fs)
+        ax.set_title(f'final data with elevations {timeString}', fontsize=fs + 4)
+        plt.tight_layout()
+        ax.legend()
+        ax.ticklabel_format(useOffset=False, style='plain')
+        plt.savefig(ofname)
+        plt.close()
 
 def plot_qaqc_post_sonar_time_shift(
     ofname,
@@ -1596,25 +1720,24 @@ def plot_qaqc_all_data_in_time(ofname, sonarData, sonar_range, payloadGpsData, T
 
     # 6.6 Now lets take a look at all of our data from the different sources
     plt.figure(figsize=(10, 4))
-    plt.suptitle("all data sources elevation", fontsize=20)
-    plt.title("These data need to overlap in time to ensure timing is correct (some methods used for time-sync")
-    plt.plot([DT.datetime.fromtimestamp(i, tz=None) for i in sonarData["time"]], sonar_range, "b.", label="sonar depth")
-    if payloadGpsData is not None:
-        plt.plot(
-            [DT.datetime.fromtimestamp(i, tz=None) for i in payloadGpsData["gps_time"]],
-            payloadGpsData["altMSL"],
-            ".g",
-            label="L1 (only) GPS elev (MSL)",
-        )
-    plt.plot(
-        [DT.datetime.fromtimestamp(i, None) for i in T_ppk["epochTime"]],
-        T_ppk["GNSS_elevation_NAVD88"],
-        ".r",
-        label="ppk elevation [NAVD88 m]",
-    )
-    plt.ylim([0, 10])
-    plt.ylabel("elevation [m]")
-    plt.xlabel("epoch time (s)")
+    plt.suptitle('all data sources elevation', fontsize=20)
+    plt.title('These data need to overlap in time for processing to work')
+    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData['time']], sonar_range, 'b.', label='sonar depth')
+    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in payloadGpsData['gps_time']], payloadGpsData['altMSL'], '.g',
+             label='L1 (only) GPS elev (MSL)')
+    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in T_ppk['epochTime']], T_ppk['GNSS_elevation_NAVD88'], '.r',
+             label='ppk elevation [NAVD88 m]')
+    # Calculate y-axis limits from all data sources with padding
+    all_elevations = np.concatenate([
+        sonar_range,
+        payloadGpsData['altMSL'],
+        T_ppk['GNSS_elevation_NAVD88']
+    ])
+    ymin, ymax = np.nanmin(all_elevations), np.nanmax(all_elevations)
+    padding = (ymax - ymin) * 0.1 if ymax > ymin else 1.0
+    plt.ylim([ymin - padding, ymax + padding])
+    plt.ylabel('elevation [m]')
+    plt.xlabel('epoch time (s)')
     plt.legend()
     plt.savefig(ofname)
     plt.close()
@@ -1633,13 +1756,16 @@ def plot_qaqc_sonar_profiles(ofname, sonarData):
     ################################################################3
 
     plt.figure(figsize=(18, 6))
-    cm = plt.pcolormesh(sonar_time, sonar_backscatter_range_m, sonar_backscatter)
+    cm = plt.pcolormesh([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData['time']], sonarData['range_m'],
+                        sonarData['profile_data'])
     cbar = plt.colorbar(cm)
-    cbar.set_label("backscatter")
-    plt.plot(sonar_time, sonar_depth_line_primary, "r-", lw=0.1, label=sonar_depth_line_primary_descriptor)
-    plt.plot(sonar_time, sonar_depth_line_secondary, "k-", lw=0.5, label=sonar_depth_line_secondary_descriptor)
-    plt.ylim([y_lim_max, 0])
-    plt.legend(loc="lower left")
+    cbar.set_label('backscatter')
+    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData['time']], sonarData['this_ping_depth_m'], 'r-', lw=0.1,
+             label='this ping Depth')
+    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData['time']], sonarData['smooth_depth_m'], 'k-', lw=0.5,
+             label='smooth Depth')
+    plt.ylim([10, 0])
+    plt.legend(loc='lower left')
     # plt.gca().invert_yaxis()
     plt.tight_layout(rect=[0.05, 0.05, 0.99, 0.99], w_pad=0.01, h_pad=0.01)
     plt.savefig(ofname)
