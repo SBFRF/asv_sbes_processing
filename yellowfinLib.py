@@ -1690,28 +1690,31 @@ def plot_qaqc_post_sonar_time_shift(
     sonar_range,
 ):
     # TODO pull this figure out to a function
-    plt.figure(figsize=(16, 8))
+    fig = plt.figure(figsize=(16, 8))
+    
     ax1 = plt.subplot(311)
-    plt.plot(T_ppk["epochTime"][indsPPK], T_ppk["GNSS_elevation_NAVD88"][indsPPK], label="ppk elevation NAVD88 m")
-    plt.plot(sonarData["time"][sonarIndicies], sonar_range[sonarIndicies], label="sonar_raw")
-    plt.legend()
+    ax1.plot(T_ppk["epochTime"][indsPPK], T_ppk["GNSS_elevation_NAVD88"][indsPPK], label="ppk elevation NAVD88 m")
+    ax1.plot(sonarData["time"][sonarIndicies], sonar_range[sonarIndicies], label="sonar_raw")
+    ax1.legend()
 
-    plt.subplot(312, sharex=ax1)
-    plt.title(f"sonar data needs to be adjusted by {phaseLaginTime} seconds")
-    plt.plot(commonTime, signal.detrend(ppkHeight_i), label="ppk input")
-    plt.plot(commonTime, signal.detrend(sonar_range_i), label="sonar input")
-    plt.plot(commonTime + phaseLaginTime, signal.detrend(sonar_range_i), ".", label="interp _sonar shifted")
-    plt.legend()
+    ax2 = plt.subplot(312, sharex=ax1)
+    ax2.set_title(f"sonar data needs to be adjusted by {phaseLaginTime} seconds")
+    ax2.plot(commonTime, signal.detrend(ppkHeight_i), label="ppk input")
+    ax2.plot(commonTime, signal.detrend(sonar_range_i), label="sonar input")
+    ax2.plot(commonTime + phaseLaginTime, signal.detrend(sonar_range_i), ".", label="interp _sonar shifted")
+    ax2.legend()
 
-    plt.subplot(313, sharex=ax1)
-    plt.title("shifted residual between sonar and GNSS (should be 0)")
-    plt.plot(
+    ax3 = plt.subplot(313, sharex=ax1)
+    ax3.set_title("shifted residual between sonar and GNSS (should be 0)")
+    ax3.plot(
         commonTime + phaseLaginTime, signal.detrend(sonar_range_i) - signal.detrend(ppkHeight_i), ".", label="residual"
     )
-    plt.ylim([-1, 1])
+    ax3.set_ylim([-1, 1])
+    ax3.legend()
+    
     plt.tight_layout()
     plt.show()
-    plt.savefig(ofname)
+    plt.savefig(ofname, dpi=100, bbox_inches='tight')
 
 
 def plot_qaqc_time_offset_determination(ofname, pc_time_off):
