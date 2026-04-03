@@ -274,8 +274,8 @@ def swap_human_traced_line(sonarData, traced_bottom, plot_fname=None):
     traced_range_m = sonarData['range_m']
 
     # now write out the bottom range
-    sonarData['smooth_depth_m'] = traced_range_m
-    sonarData['this_ping_depth_m'] = traced_range_m
+    sonarData['smooth_depth_m'] = traced_bottom['qaqc_depth_line'][:, 1]
+    sonarData['this_ping_depth_m'] = traced_bottom['qaqc_depth_line'][:, 1]
     sonarData['smoothed_depth_measurement_confidence'] = np.ones_like(sonarData['smooth_depth_m']) * 100
     sonarData['this_ping_depth_measurement_confidence'] = np.ones_like(sonarData['smooth_depth_m']) * 100
 
@@ -1067,7 +1067,7 @@ def unpackYellowfinCombinedRaw(fname):
     return data
 
 
-def plotPlanViewOnArgus(data, geoTifName, ofName=None, argus_time_out_s=120):
+def plot_planview_on_argus(data, geoTifName, ofName=None, argus_time_out_s=120):
     """plots a survey path over a geotiff at the FRF (assumes NC stateplane)
     Args:
         data: this is a dictionary of data loaded with keys of 'longitude', 'latitude', 'elevation'

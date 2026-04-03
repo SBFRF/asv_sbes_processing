@@ -54,22 +54,10 @@ def parse_args(__version__):
     parser = argparse.ArgumentParser(f"PPK processing for yellowfin (V{__version__})", add_help=True)
     # datadir, geoid, makePos = True, verbose = 1
     # Command-Line Interface: (REQUIRED) Flags
-    parser.add_argument(
-        "-d",
-        "--data_dir",
-        type=str,
-        metavar=True,
-        help="[REQUIRED] directory of data that are to be processed",
-        required=True,
-    )
-
-    parser.add_argument(
-        "--config",
-        type=str,
-        required=False,
-        default=None,
-        help="YAML config file, will overwrite all other arguments in CLI",
-    )
+    parser.add_argument('-d', '--data_dir', type=str, metavar=True, required=True,
+                        help="[REQUIRED] directory of data that are to be processed")
+    parser.add_argument('--config', type=str, required=False, default=None,
+                        help="YAML config file, will overwrite all other arguments in CLI",)
 
     # Command-Line Interface: (OPTIONAL) Flags
     parser.add_argument('-g', '--geoid_file', type=str, default='ref/g2012bu0.bin', metavar='',
@@ -393,25 +381,24 @@ def main(
     # adjust time of the sonar time stamp with timezone shift (ET -> UTC) and the timeshift between the computer and GPS
     sonarData['time'] = sonarData['time'] + ET2UTC - np.median(pc_time_off)  # convert to UTC
     if sonar_method == 'default':
-        sonar_range = sonarData['this_ping_depth_m']
+        sonar_bottom_algorithm_m = sonarData['this_ping_depth_m']
         qualityLogic = sonarData['this_ping_depth_measurement_confidence'] > instant_sonar_confidence
     elif sonar_method == 'smooth':
-        sonar_range = sonarData['smooth_depth_m']
+        sonar_bottom_algorithm_m = sonarData['smooth_depth_m']
         qualityLogic = sonarData['smoothed_depth_measurement_confidence'] > smoothed_sonar_confidence
     elif sonar_method == 'instant':
-        sonar_range = sonarData['this_ping_depth_m']
+        sonar_bottom_algorithm_m = sonarData['this_ping_depth_m']
         qualityLogic = sonarData['this_ping_depth_measurement_confidence'] > instant_sonar_confidence
     elif sonar_method == 'qaqc':
-        sonar_range = sonarData['qaqc_depth_m']
+        sonar_bottom_algorithm_m = sonarData['qaqc_depth_m']
         qualityLogic = sonarData['qaqc_depth_m'] >= 0
-    elif sonar_method == "native":
-        sonar_bottom_algorithm_m = sonarData["this_ping_depth_m"]
+    elif sonar_method == 'native':
+        sonar_bottom_algorithm_m = sonarData['this_ping_depth_m']
         qualityLogic = np.ones_like(sonar_bottom_algorithm_m, dtype=bool)
     else:
         raise ValueError(f'acceptable sonar methods include {acceptable_sonar}')
     # use the above to adjust whether you want smoothed/filtered data or raw ping depth values
 
-    ofname = os.path.join(plotDir, 'SonarBackScatter.png')
     # 6.5 now plot sonar with time
     ofname = os.path.join(plotDir, f"{timeString}_SonarBackScatter.png")
     yellowfinLib.plot_qaqc_sonar_profiles(ofname, sonarData)
@@ -618,8 +605,9 @@ def main(
     is_local_FRF = yellowfinLib.is_local_to_FRF(coords)
 
     if not is_local_FRF:
-        logging.info("identified data as NOT Local to the FRF")
+        logging.info("Identified data as NOT local to the FRF")
     else:  # start argus download as soon as we know its FRF data
+        logging.info("Identified data as local to the FRF")
         glob_argus_result = glob.glob(os.path.join(plotDir, "*rgus*.tif"))
         if len(glob_argus_result) == 1:
             argusGeotiff = glob_argus_result[0]
@@ -662,7 +650,7 @@ def main(
         data_product["yFRF"] = coords["yFRF"]
         data_product["Profile_number"] = np.ones_like(elevation_out[idxDataToSave]) * -999
         data_product["Survey_number"] = np.ones_like(elevation_out[idxDataToSave]) * -999
-        yellowfinLib.plot_plan_view_on_argus(
+        yellowfinLib.plot_planview_on_argus(
             data_product,
             argusGeotiff,
             ofName=os.path.join(plotDir, f"{timeString}_yellowfinDepthsOnArgus.png"),
