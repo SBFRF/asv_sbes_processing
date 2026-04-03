@@ -429,8 +429,16 @@ def main(
             endpoint=True,
         )
 
+        # Constrain commonTime to be within sonar data bounds to avoid NaN values in interpolation
+        sonar_time_min = sonarData["time"].min()
+        sonar_time_max = sonarData["time"].max()
+        valid_sonar_idx = ~np.isnan(sonarData["this_ping_depth_m"])
+
+        valid_time_mask = (commonTime >= sonar_time_min) & (commonTime <= sonar_time_max)
+        commonTime = commonTime[valid_time_mask]
+
         # always use instant ping for time offset calculation
-        f = interpolate.interp1d(sonarData["time"], sonarData["this_ping_depth_m"])
+        f = interpolate.interp1d(sonarData["time"][valid_sonar_idx], sonarData["this_ping_depth_m"][valid_sonar_idx])
         sonar_range_i = f(commonTime)
         f = interpolate.interp1d(T_ppk["epochTime"], T_ppk["height"])
         ppkHeight_i = f(commonTime)
