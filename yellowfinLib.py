@@ -1745,7 +1745,7 @@ def plot_qaqc_all_data_in_time(ofname, sonarData, sonar_range, payloadGpsData, T
 def plot_qaqc_sonar_profiles(ofname, sonarData):
     # unpack dictionary
     sonar_epoch_time = sonarData["time"]
-    sonar_time = [DT.datetime.fromtimestamp(i, tz=None) for i in sonar_epoch_time]
+    sonar_time = [DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonar_epoch_time]
     sonar_depth_line_primary = sonarData["this_ping_depth_m"]
     sonar_depth_line_primary_descriptor = "this ping Depth"
     sonar_depth_line_secondary = sonarData["smooth_depth_m"]
@@ -1753,18 +1753,14 @@ def plot_qaqc_sonar_profiles(ofname, sonarData):
     sonar_backscatter = sonarData["profile_data"]
     sonar_backscatter_range_m = sonarData["range_m"]
     y_lim_max = 10 if sonar_backscatter_range_m.max() > 10 else sonar_backscatter_range_m.max()
-    ################################################################3
-
+    
     plt.figure(figsize=(18, 6))
-    cm = plt.pcolormesh([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData['time']], sonarData['range_m'],
-                        sonarData['profile_data'])
+    cm = plt.pcolormesh(sonar_time, sonar_backscatter_range_m, sonar_backscatter)
     cbar = plt.colorbar(cm)
     cbar.set_label('backscatter')
-    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData['time']], sonarData['this_ping_depth_m'], 'r-', lw=0.1,
-             label='this ping Depth')
-    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData['time']], sonarData['smooth_depth_m'], 'k-', lw=0.5,
-             label='smooth Depth')
-    plt.ylim([10, 0])
+    plt.plot(sonar_time, sonar_depth_line_primary, 'r-', lw=0.1, label=sonar_depth_line_primary_descriptor)
+    plt.plot(sonar_time, sonar_depth_line_secondary, 'k-', lw=0.5, label=sonar_depth_line_secondary_descriptor)
+    plt.ylim([y_lim_max, 0])
     plt.legend(loc='lower left')
     # plt.gca().invert_yaxis()
     plt.tight_layout(rect=[0.05, 0.05, 0.99, 0.99], w_pad=0.01, h_pad=0.01)
