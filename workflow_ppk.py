@@ -211,7 +211,7 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
         logging.warning('load PPK pos files ---- THESE ARE WGS84!!!!!!!!!!!!!!')
         try:
             T_ppk = yellowfinLib.loadPPKdata(fldrlistPPK)
-            T_ppk.to_hdf(saveFnamePPK, 'ppk')  # now save the h5 intermediate file
+            T_ppk.to_hdf(saveFnamePPK, key='ppk')  # now save the h5 intermediate file
         except KeyError:
             raise FileExistsError("the pos file hasn't been loaded, manually produce or turn on RTKlib processing")
     else:
