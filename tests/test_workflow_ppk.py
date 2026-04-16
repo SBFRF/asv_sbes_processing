@@ -138,9 +138,7 @@ class TestMainFunction:
     @patch("workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files")
     @patch("workflow_ppk.os.path.isfile")
     @patch("workflow_ppk.os.makedirs")
-    def test_main_creates_directories(
-        self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir
-    ):
+    def test_main_creates_directories(self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir):
         """Test that main function creates required directories"""
         mock_isfile.return_value = True  # Pretend files exist
         datadir = str(temp_dir / "20230815")
@@ -337,9 +335,7 @@ def test_sonar_method_validation(temp_dir, sonar_method, expected_valid):
                         sonar_method=sonar_method,
                     )
                 except ValueError:
-                    pytest.fail(
-                        f"Valid sonar_method '{sonar_method}' raised ValueError"
-                    )
+                    pytest.fail(f"Valid sonar_method '{sonar_method}' raised ValueError")
                 except Exception:
                     # Other exceptions are OK for this test
                     pass

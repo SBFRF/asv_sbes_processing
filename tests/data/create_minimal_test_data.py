@@ -136,9 +136,7 @@ def main():
     """Main entry point"""
     # File paths
     input_file = Path(__file__).parent / "full_survey.pos"
-    output_file = (
-        Path(__file__).parent / "sample_survey_minimal" / "ppk" / "20231109.pos"
-    )
+    output_file = Path(__file__).parent / "sample_survey_minimal" / "ppk" / "20231109.pos"
 
     # Check if input exists
     if not input_file.exists():
@@ -148,9 +146,7 @@ def main():
         sys.exit(1)
 
     # Extract minimal data
-    start_time, end_time = extract_minimal_ppk(
-        input_file, output_file, duration_seconds=60
-    )
+    start_time, end_time = extract_minimal_ppk(input_file, output_file, duration_seconds=60)
 
     if start_time and end_time:
         print("\n" + "=" * 70)

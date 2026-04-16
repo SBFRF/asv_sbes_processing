@@ -76,9 +76,7 @@ def sample_sonar_data(temp_dir):
         hf.create_dataset("time", data=np.linspace(1692100000, 1692100100, n_pings))
         hf.create_dataset("smooth_depth_m", data=np.random.uniform(1, 5, n_pings))
         hf.create_dataset("this_ping_depth_m", data=np.random.uniform(1, 5, n_pings))
-        hf.create_dataset(
-            "profile_data", data=np.random.randint(0, 255, (n_bins, n_pings))
-        )
+        hf.create_dataset("profile_data", data=np.random.randint(0, 255, (n_bins, n_pings)))
         hf.create_dataset("range_m", data=np.linspace(0, 10, n_bins))
         hf.create_dataset("min_pwr", data=np.random.uniform(0, 100, n_pings))
         hf.create_dataset("max_pwr", data=np.random.uniform(100, 200, n_pings))
@@ -188,9 +186,7 @@ def mock_netcdf_data():
     # Note: 'date' is f8 (float64) representing seconds since 1970-01-01, not a string
     return {
         "time": np.linspace(1692100000, 1692110000, n_points),
-        "date": np.linspace(
-            1692100000, 1692110000, n_points
-        ),  # Same as time for simplicity
+        "date": np.linspace(1692100000, 1692110000, n_points),  # Same as time for simplicity
         "Latitude": np.random.uniform(35.0, 35.1, n_points),
         "Longitude": np.random.uniform(-75.1, -75.0, n_points),
         "Northing": np.random.uniform(3875000, 3876000, n_points),

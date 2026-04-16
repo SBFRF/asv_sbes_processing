@@ -189,9 +189,7 @@ class TestWriteDataToNc:
 
         data_dict = {"time": np.arange(10, dtype=np.float64)}
 
-        num_errors, error_str = py2netCDF.write_data_to_nc(
-            fid, template_vars, data_dict
-        )
+        num_errors, error_str = py2netCDF.write_data_to_nc(fid, template_vars, data_dict)
 
         assert num_errors == 0
         assert "time" in fid.variables
@@ -218,9 +216,7 @@ class TestWriteDataToNc:
 
         data_dict = {"temperature": np.random.rand(10, 5)}
 
-        num_errors, error_str = py2netCDF.write_data_to_nc(
-            fid, template_vars, data_dict
-        )
+        num_errors, error_str = py2netCDF.write_data_to_nc(fid, template_vars, data_dict)
 
         assert num_errors == 0
         assert "temperature" in fid.variables
@@ -288,15 +284,11 @@ class TestWriteDataToNc:
 class TestMakencGeneric:
     """Tests for makenc_generic function"""
 
-    def test_makenc_generic_complete(
-        self, temp_dir, sample_yaml_global, sample_yaml_variables, mock_netcdf_data
-    ):
+    def test_makenc_generic_complete(self, temp_dir, sample_yaml_global, sample_yaml_variables, mock_netcdf_data):
         """Test complete netCDF file creation"""
         nc_file = temp_dir / "output.nc"
 
-        py2netCDF.makenc_generic(
-            str(nc_file), sample_yaml_global, sample_yaml_variables, mock_netcdf_data
-        )
+        py2netCDF.makenc_generic(str(nc_file), sample_yaml_global, sample_yaml_variables, mock_netcdf_data)
 
         assert os.path.exists(nc_file)
 
@@ -317,15 +309,11 @@ class TestMakencGeneric:
             assert hasattr(fid, "institution")
             assert fid.institution == "USACE/CHL/COAB"
 
-    def test_makenc_generic_data_integrity(
-        self, temp_dir, sample_yaml_global, sample_yaml_variables, mock_netcdf_data
-    ):
+    def test_makenc_generic_data_integrity(self, temp_dir, sample_yaml_global, sample_yaml_variables, mock_netcdf_data):
         """Test that data is written correctly"""
         nc_file = temp_dir / "output.nc"
 
-        py2netCDF.makenc_generic(
-            str(nc_file), sample_yaml_global, sample_yaml_variables, mock_netcdf_data
-        )
+        py2netCDF.makenc_generic(str(nc_file), sample_yaml_global, sample_yaml_variables, mock_netcdf_data)
 
         with nc.Dataset(str(nc_file), "r") as fid:
             # Check that data matches input
@@ -336,21 +324,15 @@ class TestMakencGeneric:
 class TestReadNetCDFFile:
     """Tests for readNetCDFfile function"""
 
-    def test_read_netcdf_file(
-        self, temp_dir, sample_yaml_global, sample_yaml_variables, mock_netcdf_data
-    ):
+    def test_read_netcdf_file(self, temp_dir, sample_yaml_global, sample_yaml_variables, mock_netcdf_data):
         """Test reading existing netCDF file"""
         nc_file = temp_dir / "test.nc"
 
         # First create a file
-        py2netCDF.makenc_generic(
-            str(nc_file), sample_yaml_global, sample_yaml_variables, mock_netcdf_data
-        )
+        py2netCDF.makenc_generic(str(nc_file), sample_yaml_global, sample_yaml_variables, mock_netcdf_data)
 
         # Now read it
-        data_lib, dimensionLib, varMetaData, globalMetaData = py2netCDF.readNetCDFfile(
-            str(nc_file)
-        )
+        data_lib, dimensionLib, varMetaData, globalMetaData = py2netCDF.readNetCDFfile(str(nc_file))
 
         assert isinstance(globalMetaData, dict)
         assert isinstance(varMetaData, dict)
@@ -358,19 +340,13 @@ class TestReadNetCDFFile:
         assert "_variables" in varMetaData
         assert "_dimensions" in varMetaData
 
-    def test_read_netcdf_dimensions(
-        self, temp_dir, sample_yaml_global, sample_yaml_variables, mock_netcdf_data
-    ):
+    def test_read_netcdf_dimensions(self, temp_dir, sample_yaml_global, sample_yaml_variables, mock_netcdf_data):
         """Test reading dimensions from netCDF"""
         nc_file = temp_dir / "test.nc"
 
-        py2netCDF.makenc_generic(
-            str(nc_file), sample_yaml_global, sample_yaml_variables, mock_netcdf_data
-        )
+        py2netCDF.makenc_generic(str(nc_file), sample_yaml_global, sample_yaml_variables, mock_netcdf_data)
 
-        data_lib, dimensionLib, varMetaData, globalMetaData = py2netCDF.readNetCDFfile(
-            str(nc_file)
-        )
+        data_lib, dimensionLib, varMetaData, globalMetaData = py2netCDF.readNetCDFfile(str(nc_file))
 
         assert "time" in varMetaData["_dimensions"]
 

@@ -79,25 +79,19 @@ class TestSignalProcessing:
     def test_butter_lowpass_filter_shape(self):
         """Test that filter maintains signal length"""
         signal = np.random.randn(100)
-        filtered = yellowfinLib.butter_lowpass_filter(
-            signal, cutoff=10, fs=100, order=4
-        )
+        filtered = yellowfinLib.butter_lowpass_filter(signal, cutoff=10, fs=100, order=4)
         assert len(filtered) == len(signal)
 
     def test_butter_lowpass_filter_no_nan(self):
         """Test that filter doesn't produce NaN"""
         signal = np.random.randn(100)
-        filtered = yellowfinLib.butter_lowpass_filter(
-            signal, cutoff=10, fs=100, order=4
-        )
+        filtered = yellowfinLib.butter_lowpass_filter(signal, cutoff=10, fs=100, order=4)
         assert not np.any(np.isnan(filtered))
 
     def test_find_time_shift_no_shift(self):
         """Test cross-correlation with identical signals"""
         signal = np.sin(np.linspace(0, 4 * np.pi, 100))
-        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(
-            signal, signal, sampleFreq=1
-        )
+        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(signal, signal, sampleFreq=1)
         assert abs(phase_lag_samples) < 2
 
     def test_find_time_shift_assertion(self):

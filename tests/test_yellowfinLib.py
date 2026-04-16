@@ -44,9 +44,7 @@ class TestReadEmlidPos:
         folder = os.path.dirname(mock_pos_file)
         save_path = temp_dir / "output.h5"
 
-        result = yellowfinLib.read_emlid_pos(
-            [folder], plot=False, saveFname=str(save_path)
-        )
+        result = yellowfinLib.read_emlid_pos([folder], plot=False, saveFname=str(save_path))
 
         assert isinstance(result, pd.DataFrame)
         assert os.path.exists(save_path)
@@ -90,9 +88,7 @@ class TestButterLowpassFilter:
         signal = np.sin(2 * np.pi * 5 * t) + 0.5 * np.sin(2 * np.pi * 50 * t)
 
         # Filter with cutoff at 10 Hz
-        filtered = yellowfinLib.butter_lowpass_filter(
-            signal, cutoff=10, fs=1000, order=4
-        )
+        filtered = yellowfinLib.butter_lowpass_filter(signal, cutoff=10, fs=1000, order=4)
 
         assert len(filtered) == len(signal)
         assert isinstance(filtered, np.ndarray)
@@ -104,9 +100,7 @@ class TestButterLowpassFilter:
         noise = 0.5 * np.sin(2 * np.pi * 100 * t)
         noisy_signal = clean_signal + noise
 
-        filtered = yellowfinLib.butter_lowpass_filter(
-            noisy_signal, cutoff=10, fs=1000, order=4
-        )
+        filtered = yellowfinLib.butter_lowpass_filter(noisy_signal, cutoff=10, fs=1000, order=4)
 
         # Filtered signal should be closer to clean signal than noisy signal
         error_before = np.mean((noisy_signal - clean_signal) ** 2)
@@ -123,9 +117,7 @@ class TestFindTimeShiftCrossCorr:
         signal1 = np.sin(np.linspace(0, 4 * np.pi, 100))
         signal2 = signal1.copy()
 
-        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(
-            signal1, signal2, sampleFreq=1
-        )
+        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(signal1, signal2, sampleFreq=1)
 
         assert abs(phase_lag_samples) < 2  # Should be close to 0
 
@@ -134,9 +126,7 @@ class TestFindTimeShiftCrossCorr:
         signal1 = np.sin(np.linspace(0, 4 * np.pi, 100))
         signal2 = np.roll(signal1, 10)  # Shift by 10 samples
 
-        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(
-            signal1, signal2, sampleFreq=1
-        )
+        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(signal1, signal2, sampleFreq=1)
 
         # Should detect the 10 sample shift (or close to it)
         assert abs(phase_lag_samples - 10) < 5
@@ -245,9 +235,7 @@ class TestUnpackYellowfinCombinedRaw:
             hf.create_dataset("sonar_smooth_confidence", data=np.ones(100) * 80)
             hf.create_dataset("sonar_instant_depth", data=np.random.uniform(1, 5, 100))
             hf.create_dataset("sonar_instant_confidence", data=np.ones(100) * 90)
-            hf.create_dataset(
-                "sonar_backscatter_out", data=np.random.randint(0, 255, 100)
-            )
+            hf.create_dataset("sonar_backscatter_out", data=np.random.randint(0, 255, 100))
             hf.create_dataset("bad_lat", data=np.array([]))
             hf.create_dataset("bad_lon", data=np.array([]))
             hf.create_dataset("xFRF", data=np.random.uniform(0, 1000, 100))
@@ -330,9 +318,7 @@ class TestLoadYellowfinNMEAFiles:
         folder = os.path.dirname(sample_nmea_data)
         output_file = temp_dir / "nmea_output.h5"
 
-        yellowfinLib.load_yellowfin_NMEA_files(
-            folder, saveFname=str(output_file), plotfname=False, verbose=0
-        )
+        yellowfinLib.load_yellowfin_NMEA_files(folder, saveFname=str(output_file), plotfname=False, verbose=0)
 
         assert os.path.exists(output_file)
 

@@ -37,16 +37,12 @@ class bottomTracer:
         self.menu_frame.pack(side="top", fill="x", padx=10, pady=10)
         for col in range(4):
             self.menu_frame.grid_columnconfigure(col, weight=1)
-        tk.Label(self.menu_frame, text="Chunk Size:").grid(
-            row=0, column=1, padx=0, pady=5
-        )
+        tk.Label(self.menu_frame, text="Chunk Size:").grid(row=0, column=1, padx=0, pady=5)
         self.chunk_size_entry = tk.Entry(self.menu_frame, width=10, justify="center")
         self.chunk_size = 250
         self.chunk_size_entry.insert(0, str(self.chunk_size))
         self.chunk_size_entry.grid(row=0, column=2, padx=0, pady=5)
-        tk.Label(self.menu_frame, text="Input File:").grid(
-            row=1, column=1, padx=10, pady=5
-        )
+        tk.Label(self.menu_frame, text="Input File:").grid(row=1, column=1, padx=10, pady=5)
         self.input_file_path = tk.StringVar(value=os.getcwd())
         self.input_dir_entry = tk.Entry(
             self.menu_frame,
@@ -55,35 +51,25 @@ class bottomTracer:
             justify="center",
         )
         self.input_dir_entry.grid(row=1, column=2, padx=10, pady=5, sticky="w")
-        self.browseInput_Button = tk.Button(
-            self.menu_frame, text="Browse", command=self.choose_input_file
-        )
+        self.browseInput_Button = tk.Button(self.menu_frame, text="Browse", command=self.choose_input_file)
         self.browseInput_Button.grid(row=1, column=3, padx=10, pady=5, sticky="w")
-        self.load_button = tk.Button(
-            self.menu_frame, text="Start Labeling", command=self.load_file, width=30
-        )
+        self.load_button = tk.Button(self.menu_frame, text="Start Labeling", command=self.load_file, width=30)
         self.load_button.grid(row=3, column=0, padx=0, pady=5, columnspan=4)
         self.annotation_frame = tk.Frame(root)
 
         screen_width = root.winfo_screenwidth()  # Get screen dimensions
         screen_height = root.winfo_screenheight()
-        max_width = int(
-            screen_width * 0.75
-        )  # Define margins (e.g., use 90% of available screen size)
+        max_width = int(screen_width * 0.75)  # Define margins (e.g., use 90% of available screen size)
         max_height = int(screen_height * 0.75)
         target_ratio = 5 / 3  # Desired aspect ratio
-        if (
-            max_width / target_ratio <= max_height
-        ):  # Compute figure size while maintaining aspect ratio
+        if max_width / target_ratio <= max_height:  # Compute figure size while maintaining aspect ratio
             fig_width_px = max_width
             fig_height_px = int(max_width / target_ratio)
         else:
             fig_height_px = max_height
             fig_width_px = int(max_height * target_ratio)
         fig_width_px = fig_width_px - (fig_width_px % 2)  # Round to nearest even number
-        fig_height_px = fig_height_px - (
-            fig_height_px % 2
-        )  # Round to nearest even number
+        fig_height_px = fig_height_px - (fig_height_px % 2)  # Round to nearest even number
         dpi = 100  # Convert pixels to inches (assuming 100 DPI)
         fig_width_in = fig_width_px / dpi
         fig_height_in = fig_height_px / dpi
@@ -96,22 +82,14 @@ class bottomTracer:
         self.jump_frame = tk.Frame(self.annotation_frame)
         self.jump_frame.pack(pady=5)
         tk.Label(self.jump_frame, text="Slice #").grid(row=0, column=0, padx=5)
-        self.prev_button_jump = tk.Button(
-            self.jump_frame, text="<<", command=self.prev_slice
-        )
+        self.prev_button_jump = tk.Button(self.jump_frame, text="<<", command=self.prev_slice)
         self.prev_button_jump.grid(row=0, column=1, padx=5)
         self.jump_slice_var = tk.StringVar(value="1")
-        self.jump_entry = tk.Entry(
-            self.jump_frame, textvariable=self.jump_slice_var, width=5, justify="center"
-        )
+        self.jump_entry = tk.Entry(self.jump_frame, textvariable=self.jump_slice_var, width=5, justify="center")
         self.jump_entry.grid(row=0, column=2, padx=5)
-        self.next_button_jump = tk.Button(
-            self.jump_frame, text=">>", command=self.next_slice
-        )
+        self.next_button_jump = tk.Button(self.jump_frame, text=">>", command=self.next_slice)
         self.next_button_jump.grid(row=0, column=3, padx=5)
-        self.jump_button = tk.Button(
-            self.jump_frame, text="Jump To Slice", command=self.jump_to_slice
-        )
+        self.jump_button = tk.Button(self.jump_frame, text="Jump To Slice", command=self.jump_to_slice)
         self.jump_button.grid(row=0, column=4, padx=5)
         self.y_axis_frame = tk.Frame(self.annotation_frame)
         self.y_axis_frame.pack(pady=5)
@@ -121,9 +99,7 @@ class bottomTracer:
         tk.Label(self.y_axis_frame, text="-").pack(side="left", padx=5)
         self.ymax_entry = tk.Entry(self.y_axis_frame, width=10, justify="center")
         self.ymax_entry.pack(side="left", padx=5)
-        self.y_update_button = tk.Button(
-            self.y_axis_frame, text="Update", command=self.update_y_axis_limits
-        )
+        self.y_update_button = tk.Button(self.y_axis_frame, text="Update", command=self.update_y_axis_limits)
         self.y_update_button.pack(side="left", padx=5)
         self.depth_frame = tk.Frame(self.annotation_frame)
         self.depth_frame.pack(pady=5)
@@ -149,34 +125,22 @@ class bottomTracer:
             value="Off",
             command=self.update_display,
         ).grid(row=0, column=3)
-        self.nan_button = tk.Button(
-            self.depth_frame, text="Omit Whole Slice", command=self.apply_traced_line
-        )
+        self.nan_button = tk.Button(self.depth_frame, text="Omit Whole Slice", command=self.apply_traced_line)
         self.nan_button.grid(row=0, column=4, padx=(20, 0))
         self.button_frame = tk.Frame(self.annotation_frame)
         self.button_frame.pack(fill="both", expand=True)
-        self.clear_button = tk.Button(
-            self.button_frame, text="Clear Annotations", command=self.clear_annotations
-        )
+        self.clear_button = tk.Button(self.button_frame, text="Clear Annotations", command=self.clear_annotations)
         self.clear_button.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
         self.save_button = tk.Button(self.button_frame, text="", state="normal")
         self.save_button.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
         self.save_depth_button = tk.Button(self.button_frame, text="", state="normal")
         self.save_depth_button.grid(row=0, column=2, padx=10, pady=5, sticky="ew")
-        self.lasso_button = tk.Button(
-            self.button_frame, text="", command=self.activate_lasso, state="disabled"
-        )
+        self.lasso_button = tk.Button(self.button_frame, text="", command=self.activate_lasso, state="disabled")
         self.lasso_button.grid(row=0, column=3, padx=10, pady=5, sticky="ew")
-        self.logscale_button = tk.Button(
-            self.depth_frame, text="Toggle Log Scale", command=self.toggle_logscale
-        )
+        self.logscale_button = tk.Button(self.depth_frame, text="Toggle Log Scale", command=self.toggle_logscale)
         self.logscale_button.grid(row=0, column=5, padx=(20, 0))  # adjust as needed
-        self.quit_button = tk.Button(
-            self.button_frame, text="Quit", command=self.quit_gui
-        )
-        self.quit_button.grid(
-            row=1, column=0, columnspan=4, padx=10, pady=5, sticky="ew"
-        )
+        self.quit_button = tk.Button(self.button_frame, text="Quit", command=self.quit_gui)
+        self.quit_button.grid(row=1, column=0, columnspan=4, padx=10, pady=5, sticky="ew")
         for col in range(4):
             self.button_frame.grid_columnconfigure(col, weight=1)
         self.start_time = None
@@ -218,9 +182,7 @@ class bottomTracer:
 
     def choose_input_file(self):
         """Opens a file or directory selection dialog."""
-        file_path = filedialog.askopenfilename(
-            initialdir=os.getcwd(), filetypes=[("HDF5 files", "*.h5 *.hdf5")]
-        )
+        file_path = filedialog.askopenfilename(initialdir=os.getcwd(), filetypes=[("HDF5 files", "*.h5 *.hdf5")])
         if file_path:
             self.input_file_path.set(file_path)
 
@@ -237,18 +199,12 @@ class bottomTracer:
         self.base_name = os.path.splitext(input_file)[0]
         raw_dir = os.path.dirname(self.input_file_path)
         self.output_folder = raw_dir
-        self.whole_record_file = os.path.join(
-            raw_dir, f"{self.base_name}_bottomTraced_wholeRecord.h5"
-        )
+        self.whole_record_file = os.path.join(raw_dir, f"{self.base_name}_bottomTraced_wholeRecord.h5")
         with h5py.File(self.input_file_path, "a") as raw_h5:
             self.total_time = raw_h5["time"].shape[0]
             if "qaqc_depth_line" not in raw_h5:
-                full_data = np.column_stack(
-                    (np.arange(self.total_time), np.full(self.total_time, float(-999)))
-                )
-                raw_h5.create_dataset(
-                    "qaqc_depth_line", data=full_data, maxshape=(self.total_time, 2)
-                )
+                full_data = np.column_stack((np.arange(self.total_time), np.full(self.total_time, float(-999))))
+                raw_h5.create_dataset("qaqc_depth_line", data=full_data, maxshape=(self.total_time, 2))
             self.menu_frame.pack_forget()
             self.annotation_frame.pack(fill="both", expand=True)
             self.idx_start = 0
@@ -287,33 +243,21 @@ class bottomTracer:
                 else:
                     self.length_mm = None
                     self.bin_size = None
-                self.this_ping_depth_m = (
-                    f["this_ping_depth_m"][idx] if "this_ping_depth_m" in f else None
-                )
+                self.this_ping_depth_m = f["this_ping_depth_m"][idx] if "this_ping_depth_m" in f else None
             else:
                 self.smooth_depth = None
                 self.length_mm = None
                 self.this_ping_depth_m = None
                 self.bin_size = None
         if self.bin_size is not None:
-            self.smooth_depth_img = (
-                self.smooth_depth / self.bin_size
-                if self.smooth_depth is not None
-                else None
-            )
+            self.smooth_depth_img = self.smooth_depth / self.bin_size if self.smooth_depth is not None else None
             self.this_ping_depth_img = (
-                self.this_ping_depth_m / self.bin_size
-                if self.this_ping_depth_m is not None
-                else None
+                self.this_ping_depth_m / self.bin_size if self.this_ping_depth_m is not None else None
             )
             if self.smooth_depth_img is not None:
-                self.smooth_depth_img[
-                    self.smooth_depth < self.data_blanking_distance_cm / 100
-                ] = np.nan
+                self.smooth_depth_img[self.smooth_depth < self.data_blanking_distance_cm / 100] = np.nan
             if self.this_ping_depth_img is not None:
-                self.this_ping_depth_img[
-                    self.this_ping_depth_m < self.data_blanking_distance_cm / 100
-                ] = np.nan
+                self.this_ping_depth_img[self.this_ping_depth_m < self.data_blanking_distance_cm / 100] = np.nan
         else:
             self.smooth_depth_img = None
             self.this_ping_depth_img = None
@@ -390,15 +334,9 @@ class bottomTracer:
         """Updates internal state or display elements."""
         if self.depth_option.get() == "Off":
             self.clear_button.grid()
-            self.clear_button.config(
-                text="Clear Annotations", command=self.clear_annotations, state="normal"
-            )
-            self.save_button.config(
-                text="Apply Traced Line", command=self.apply_traced_line, state="normal"
-            )
-            self.save_depth_button.config(
-                text="Save Manual Depth Line", command=self.save_data, state="disabled"
-            )
+            self.clear_button.config(text="Clear Annotations", command=self.clear_annotations, state="normal")
+            self.save_button.config(text="Apply Traced Line", command=self.apply_traced_line, state="normal")
+            self.save_depth_button.config(text="Save Manual Depth Line", command=self.save_data, state="disabled")
             self.lasso_button.config(text="", command=None, state="disabled")
             self.ax.set_title(
                 "Manual Tracing Mode Enabled:\nLeft click to trace the depth line in green.",
@@ -423,24 +361,16 @@ class bottomTracer:
             )
         else:
             self.clear_button.grid()
-            self.clear_button.config(
-                text="Clear Annotations", command=self.clear_edit_mode, state="normal"
-            )
-            self.save_button.config(
-                text="Apply Edits", command=self.apply_edits, state="normal"
-            )
+            self.clear_button.config(text="Clear Annotations", command=self.clear_edit_mode, state="normal")
+            self.save_button.config(text="Apply Edits", command=self.apply_edits, state="normal")
             self.save_depth_button.config(
                 text="Save Edited Depth Line",
                 command=self.save_edited_depth_line,
                 state="disabled",
             )
             self.lasso_button.config(text="", command=None, state="disabled")
-        self.next_button_jump.config(
-            state="normal" if self.slice_number < self.total_slices else "disabled"
-        )
-        self.prev_button_jump.config(
-            state="normal" if self.slice_number > 1 else "disabled"
-        )
+        self.next_button_jump.config(state="normal" if self.slice_number < self.total_slices else "disabled")
+        self.prev_button_jump.config(state="normal" if self.slice_number > 1 else "disabled")
         self.canvas.draw()
 
     def update_y_axis_limits(self):
@@ -449,25 +379,14 @@ class bottomTracer:
             self.ymin = float(self.ymin_entry.get())
             self.ymax = float(self.ymax_entry.get())
         except ValueError:
-            messagebox.showerror(
-                "Invalid Input", "Please enter numeric values for Y Axis Limits."
-            )
+            messagebox.showerror("Invalid Input", "Please enter numeric values for Y Axis Limits.")
             return
         num_results = self.image.shape[0] if self.image is not None else 0
-        if (
-            self.ymin < 0
-            or self.ymax < 0
-            or self.ymin > num_results
-            or (self.ymax > num_results)
-        ):
-            messagebox.showerror(
-                "Invalid Input", f"Values must be between 0 and {num_results}."
-            )
+        if self.ymin < 0 or self.ymax < 0 or self.ymin > num_results or (self.ymax > num_results):
+            messagebox.showerror("Invalid Input", f"Values must be between 0 and {num_results}.")
             return
         if self.ymin > self.ymax:
-            messagebox.showerror(
-                "Invalid Input", "Lower limit cannot be greater than upper limit."
-            )
+            messagebox.showerror("Invalid Input", "Lower limit cannot be greater than upper limit.")
             return
         if self.ymax - self.ymin < 100:
             messagebox.showerror(
@@ -641,13 +560,9 @@ class bottomTracer:
         self.ymin_entry.config(state="disabled")
         self.ymax_entry.config(state="disabled")
         self.y_update_button.config(state="disabled")
-        self.coordinates.append(
-            (event.x, event.y, *self.canvas_to_data(event.x, event.y), "green")
-        )
+        self.coordinates.append((event.x, event.y, *self.canvas_to_data(event.x, event.y), "green"))
         if self.depth_option.get() == "Off":
-            self.save_button.config(
-                text="Apply Traced Line", command=self.apply_traced_line, state="normal"
-            )
+            self.save_button.config(text="Apply Traced Line", command=self.apply_traced_line, state="normal")
 
     def trace_line(self, event):
         """Records line drawing as the user moves the mouse."""
@@ -897,9 +812,7 @@ class bottomTracer:
                 "Lasso Tool Active: Use the middle mouse button to draw around points to remove. Press 'Finish Cleaning' when done.",
                 fontsize=16,
             )
-            self.lasso = LassoSelector(
-                self.ax, onselect, props=dict(color="red"), useblit=True
-            )
+            self.lasso = LassoSelector(self.ax, onselect, props=dict(color="red"), useblit=True)
             self.lasso.set_active(True)
             self.canvas.draw()
 
@@ -924,9 +837,7 @@ class bottomTracer:
             self.ymin = float(self.ymin_entry.get())
             self.ymax = float(self.ymax_entry.get())
         except ValueError:
-            messagebox.showerror(
-                "Invalid Input", "Please enter numeric Y-axis limits before editing."
-            )
+            messagebox.showerror("Invalid Input", "Please enter numeric Y-axis limits before editing.")
             return
         self.edit_mode = True
         self.ax.clear()
@@ -972,12 +883,8 @@ class bottomTracer:
         self.canvas_widget.bind("<ButtonRelease-1>", self.stop_tracing)
         self.canvas_widget.bind("<ButtonRelease-3>", self.stop_tracing)
         self.clear_button.grid()
-        self.clear_button.config(
-            text="Clear Annotations", command=self.clear_edit_mode, state="normal"
-        )
-        self.save_button.config(
-            text="Apply Edits", command=self.apply_edits, state="normal"
-        )
+        self.clear_button.config(text="Clear Annotations", command=self.clear_edit_mode, state="normal")
+        self.save_button.config(text="Apply Edits", command=self.apply_edits, state="normal")
         self.save_depth_button.config(
             text="Save Edited Depth Line",
             command=self.save_edited_depth_line,
@@ -1001,14 +908,9 @@ class bottomTracer:
             return
 
         # Get green edits from this round
-        new_green_edit = self.interpolate_coordinates_by_color("green")[
-            : self.slice_length, 1
-        ]
+        new_green_edit = self.interpolate_coordinates_by_color("green")[: self.slice_length, 1]
         # Initialize accumulator if needed
-        if (
-            self.all_green_edits is None
-            or len(self.all_green_edits) != self.slice_length
-        ):
+        if self.all_green_edits is None or len(self.all_green_edits) != self.slice_length:
             self.all_green_edits = np.full(self.slice_length, np.nan)
         # Combine current round with all prior green edits
         combined_green = np.copy(self.all_green_edits)
@@ -1075,9 +977,7 @@ class bottomTracer:
         self.canvas.draw()
         self.clear_annotations()
         self.unbind_all_events()
-        self.save_button.config(
-            text="Continue Editing", command=self.continue_editing, state="normal"
-        )
+        self.save_button.config(text="Continue Editing", command=self.continue_editing, state="normal")
         self.save_depth_button.config(state="normal")
 
     def continue_editing(self):
@@ -1125,12 +1025,8 @@ class bottomTracer:
         self.canvas_widget.bind("<ButtonRelease-3>", self.stop_tracing)
 
         self.clear_button.grid()
-        self.clear_button.config(
-            text="Clear Annotations", command=self.clear_edit_mode, state="normal"
-        )
-        self.save_button.config(
-            text="Apply Edits", command=self.apply_edits, state="normal"
-        )
+        self.clear_button.config(text="Clear Annotations", command=self.clear_edit_mode, state="normal")
+        self.save_button.config(text="Apply Edits", command=self.apply_edits, state="normal")
         self.save_depth_button.config(
             text="Save Edited Depth Line",
             command=self.save_edited_depth_line,
@@ -1154,16 +1050,12 @@ class bottomTracer:
             self.canvas.draw()
             self.save_data()
             return
-        traced_values = self.interpolate_coordinates_by_color("green")[
-            : self.slice_length, 1
-        ]
+        traced_values = self.interpolate_coordinates_by_color("green")[: self.slice_length, 1]
         self.canvas_widget.delete("annotation")
         x_vals = np.arange(self.slice_length)
         self.ax.clear()
         self.ax.pcolormesh(self.image, cmap="plasma")
-        self.ax.plot(
-            x_vals, traced_values, color="blue", linewidth=2, label="Manual Depth Line"
-        )
+        self.ax.plot(x_vals, traced_values, color="blue", linewidth=2, label="Manual Depth Line")
         self.ax.legend(loc="upper right")
         self.ax.set_title("")
         self.ax.set_xlabel("Time (s)", fontsize=15)
@@ -1177,9 +1069,7 @@ class bottomTracer:
         self.unbind_all_events()
         self.applied_line = True
         self.save_button.config(state="disabled")
-        self.save_depth_button.config(
-            text="Save Manual Depth Line", command=self.save_data, state="normal"
-        )
+        self.save_depth_button.config(text="Save Manual Depth Line", command=self.save_data, state="normal")
 
     def save_edited_depth_line(self):
         """Saves data or images to file."""
@@ -1194,9 +1084,7 @@ class bottomTracer:
         x_vals = np.arange(self.slice_length)
         self.ax.clear()
         self.ax.pcolormesh(self.image, cmap="plasma")
-        self.ax.plot(
-            x_vals, merged, color="cyan", linewidth=2, label="Saved Depth Line"
-        )
+        self.ax.plot(x_vals, merged, color="cyan", linewidth=2, label="Saved Depth Line")
         self.ax.tick_params(axis="y", which="both", labelleft=True, labelright=True)
         self.ax.set_xlim(0, self.slice_length)
         self.ax.set_ylim(0, self.image.shape[0])
@@ -1206,9 +1094,7 @@ class bottomTracer:
         self.ax.tick_params(axis="x", labelsize=14)
         self.ax.tick_params(axis="y", labelsize=14)
         self.add_secondary_y_axis()
-        default_filename = (
-            f"{self.base_name}_bottomTraced_{idxS}-{idxS + self.slice_length - 1}.png"
-        )
+        default_filename = f"{self.base_name}_bottomTraced_{idxS}-{idxS + self.slice_length - 1}.png"
         self.ax.set_title(default_filename, fontsize=16)
         self.canvas.draw()
         self.root.update()
@@ -1229,20 +1115,14 @@ class bottomTracer:
             merged_data = np.column_stack((x_vals, merged))
             hf.create_dataset("depth_line_by_slice_idx", data=merged_data)
             time_indices = np.arange(idxS, idxS + self.slice_length)
-            hf.create_dataset(
-                "depth_line_by_time_idx", data=np.column_stack((time_indices, merged))
-            )
+            hf.create_dataset("depth_line_by_time_idx", data=np.column_stack((time_indices, merged)))
             hf.create_dataset("profile_data_slice", data=self.image)
         self.update_whole_record(np.arange(idxS, idxS + self.slice_length), merged)
-        print(
-            f"\n============= Slice #: {str(self.slice_number).zfill(2)} =============="
-        )
+        print(f"\n============= Slice #: {str(self.slice_number).zfill(2)} ==============")
         print(f"Image saved: {os.path.normpath(png_path)}")
         print(f"Depth line saved: {os.path.normpath(h5_path)}")
         print(f"Whole record updated: {os.path.normpath(self.whole_record_file)}")
-        print(
-            f"Raw file qaqc_depth_line updated: {os.path.normpath(self.input_file_path)}"
-        )
+        print(f"Raw file qaqc_depth_line updated: {os.path.normpath(self.input_file_path)}")
         print("========================================\n")
         self.unbind_all_events()
         self.slice_saved()
@@ -1255,9 +1135,7 @@ class bottomTracer:
         num_results = self.image.shape[0]
         self.ax.set_ylim(0, num_results)
         idxS = self.idx_start
-        default_filename = (
-            f"{self.base_name}_bottomTraced_{idxS}-{idxS + self.slice_length - 1}.png"
-        )
+        default_filename = f"{self.base_name}_bottomTraced_{idxS}-{idxS + self.slice_length - 1}.png"
         self.ax.set_title(default_filename, fontsize=16)
         self.canvas.draw()
         self.sync_y_axis_entries()
@@ -1305,9 +1183,7 @@ class bottomTracer:
         self.add_secondary_y_axis()
         self.canvas.draw()
         self.root.update()
-        self.image_for_saving = Image.fromarray(
-            np.array(self.fig.canvas.renderer.buffer_rgba())
-        )
+        self.image_for_saving = Image.fromarray(np.array(self.fig.canvas.renderer.buffer_rgba()))
         raw_dir = os.path.dirname(self.input_file_path)
         qcplots = os.path.join(raw_dir, "qcPlots")
         os.makedirs(qcplots, exist_ok=True)
@@ -1325,18 +1201,12 @@ class bottomTracer:
                 data=np.column_stack((time_indices, interp_values[:, 1])),
             )
             hf.create_dataset("profile_data_slice", data=self.image)
-        self.update_whole_record(
-            np.arange(idxS, idxS + self.slice_length), interp_values[:, 1]
-        )
-        print(
-            f"\n============= Slice #: {str(self.slice_number).zfill(2)} =============="
-        )
+        self.update_whole_record(np.arange(idxS, idxS + self.slice_length), interp_values[:, 1])
+        print(f"\n============= Slice #: {str(self.slice_number).zfill(2)} ==============")
         print(f"Image saved: {os.path.normpath(png_path)}")
         print(f"Manual depth line saved: {os.path.normpath(h5_path)}")
         print(f"Whole record updated: {os.path.normpath(self.whole_record_file)}")
-        print(
-            f"Raw file qaqc_depth_line updated: {os.path.normpath(self.input_file_path)}"
-        )
+        print(f"Raw file qaqc_depth_line updated: {os.path.normpath(self.input_file_path)}")
         print("========================================\n")
         self.manual_line_saved = True
         self.unbind_all_events()
@@ -1354,11 +1224,7 @@ class bottomTracer:
         if self.depth_option.get() not in ["Smooth Depth", "Ping Depth"]:
             messagebox.showerror("Error", "No depth line selected!")
             return
-        data = (
-            self.smooth_depth_img
-            if self.depth_option.get() == "Smooth Depth"
-            else self.this_ping_depth_img
-        )
+        data = self.smooth_depth_img if self.depth_option.get() == "Smooth Depth" else self.this_ping_depth_img
         if data is None:
             messagebox.showerror("Error", "Depth data not available!")
             return
@@ -1368,17 +1234,13 @@ class bottomTracer:
         self.ax.clear()
         self.ax.pcolormesh(self.image, cmap="plasma")
         self.ax.tick_params(axis="y", which="both", labelleft=True, labelright=True)
-        self.ax.plot(
-            x_coords, depth_coords, color="cyan", linewidth=2, label="Saved Depth Line"
-        )
+        self.ax.plot(x_coords, depth_coords, color="cyan", linewidth=2, label="Saved Depth Line")
         self.ax.legend(loc="upper right")
         self.ax.set_xlabel("Ping Count", fontsize=15)
         self.ax.set_ylabel("Bin #", fontsize=15)
         self.ax.tick_params(axis="x", labelsize=14)
         self.ax.tick_params(axis="y", labelsize=14)
-        default_filename = (
-            f"{self.base_name}_bottomTraced_{idxS}-{idxS + self.slice_length - 1}.png"
-        )
+        default_filename = f"{self.base_name}_bottomTraced_{idxS}-{idxS + self.slice_length - 1}.png"
         self.ax.set_title(default_filename, fontsize=16)
         self.add_secondary_y_axis()
         self.canvas.draw()
@@ -1405,18 +1267,12 @@ class bottomTracer:
                 data=np.column_stack((time_indices, depth_coords)),
             )
             hf.create_dataset("profile_data_slice", data=self.image)
-        self.update_whole_record(
-            np.arange(idxS, idxS + self.slice_length), depth_coords
-        )
-        print(
-            f"\n============= Slice #: {str(self.slice_number).zfill(2)} =============="
-        )
+        self.update_whole_record(np.arange(idxS, idxS + self.slice_length), depth_coords)
+        print(f"\n============= Slice #: {str(self.slice_number).zfill(2)} ==============")
         print(f"Image saved: {os.path.normpath(png_path)}")
         print(f"Depth line saved: {os.path.normpath(h5_path)}")
         print(f"Whole record updated: {os.path.normpath(self.whole_record_file)}")
-        print(
-            f"Raw file qaqc_depth_line updated: {os.path.normpath(self.input_file_path)}"
-        )
+        print(f"Raw file qaqc_depth_line updated: {os.path.normpath(self.input_file_path)}")
         print("========================================\n")
         self.manual_line_saved = True
         self.unbind_all_events()
@@ -1529,9 +1385,7 @@ class bottomTracer:
         plt.close(fig)
 
         end_time = time.time()
-        elapsed_minutes = (
-            round((end_time - self.start_time) / 60, 2) if self.start_time else "N/A"
-        )
+        elapsed_minutes = round((end_time - self.start_time) / 60, 2) if self.start_time else "N/A"
 
         print("\n============= Final Summary ==============")
         print(f"Final whole-record image saved: {os.path.normpath(final_path)}")
@@ -1542,24 +1396,16 @@ class bottomTracer:
         """Updates internal state or display elements."""
         with h5py.File(self.whole_record_file, "a", locking=False) as hf:
             if "qaqc_depth_line" not in hf:
-                full_data = np.column_stack(
-                    (np.arange(self.total_time), np.full(self.total_time, float(-999)))
-                )
-                hf.create_dataset(
-                    "qaqc_depth_line", data=full_data, maxshape=(self.total_time, 2)
-                )
+                full_data = np.column_stack((np.arange(self.total_time), np.full(self.total_time, float(-999))))
+                hf.create_dataset("qaqc_depth_line", data=full_data, maxshape=(self.total_time, 2))
             dset = hf["qaqc_depth_line"]
             for i, idx in enumerate(time_indices):
                 dset[idx, 0] = idx
                 dset[idx, 1] = depth_values[i]
         with h5py.File(self.input_file_path, "a") as raw_h5:
             if "qaqc_depth_line" not in raw_h5:
-                full_data = np.column_stack(
-                    (np.arange(self.total_time), np.full(self.total_time, float(-999)))
-                )
-                raw_h5.create_dataset(
-                    "qaqc_depth_line", data=full_data, maxshape=(self.total_time, 2)
-                )
+                full_data = np.column_stack((np.arange(self.total_time), np.full(self.total_time, float(-999))))
+                raw_h5.create_dataset("qaqc_depth_line", data=full_data, maxshape=(self.total_time, 2))
             raw_dset = raw_h5["qaqc_depth_line"]
             for i, idx in enumerate(time_indices):
                 raw_dset[idx, 0] = idx
@@ -1568,9 +1414,7 @@ class bottomTracer:
     @property
     def whole_record_data(self):
         """Returns all datasets from the input HDF5 file, handling scalar and array data."""
-        if not hasattr(self, "input_file_path") or not os.path.exists(
-            self.input_file_path
-        ):
+        if not hasattr(self, "input_file_path") or not os.path.exists(self.input_file_path):
             return None
         with h5py.File(self.input_file_path, "r") as f:
             result = {}

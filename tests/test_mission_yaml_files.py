@@ -172,9 +172,7 @@ class TestMakeFailureYaml:
             content = f.read()
             assert content == "existing failure data"
 
-    @patch(
-        "builtins.input", side_effect=["y", "y", "2", "Rescue required", "0", "0", ""]
-    )
+    @patch("builtins.input", side_effect=["y", "y", "2", "Rescue required", "0", "0", ""])
     def test_make_failure_yaml_overwrite(self, mock_input, temp_dir):
         """Test overwriting existing failure file"""
         yaml_file = temp_dir / "mission_failure_metadata.yaml"
