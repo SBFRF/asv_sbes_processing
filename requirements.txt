@@ -9,7 +9,6 @@ netCDF4
 pyyaml
 rasterio
 requests
-posixpath
 
 # Plotting
 matplotlib
