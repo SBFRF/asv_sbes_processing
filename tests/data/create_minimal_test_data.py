@@ -58,7 +58,7 @@ def extract_minimal_ppk(input_file, output_file, duration_seconds=60):
     print(f"Reading {input_file}...")
 
     # Read file
-    with open(input_file, 'r') as f:
+    with open(input_file, "r") as f:
         lines = f.readlines()
 
     # Separate header and data
@@ -67,7 +67,7 @@ def extract_minimal_ppk(input_file, output_file, duration_seconds=60):
     timestamps = []
 
     for line in lines:
-        if line.startswith('%'):
+        if line.startswith("%"):
             header.append(line)
         else:
             # Skip empty lines
@@ -122,7 +122,7 @@ def extract_minimal_ppk(input_file, output_file, duration_seconds=60):
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Write output
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         f.writelines(header)
         if extracted:
             f.writelines(extracted)
@@ -136,7 +136,9 @@ def main():
     """Main entry point"""
     # File paths
     input_file = Path(__file__).parent / "full_survey.pos"
-    output_file = Path(__file__).parent / "sample_survey_minimal" / "ppk" / "20231109.pos"
+    output_file = (
+        Path(__file__).parent / "sample_survey_minimal" / "ppk" / "20231109.pos"
+    )
 
     # Check if input exists
     if not input_file.exists():
@@ -147,15 +149,13 @@ def main():
 
     # Extract minimal data
     start_time, end_time = extract_minimal_ppk(
-        input_file,
-        output_file,
-        duration_seconds=60
+        input_file, output_file, duration_seconds=60
     )
 
     if start_time and end_time:
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("Extraction Complete")
-        print("="*70)
+        print("=" * 70)
         print(f"\nExtracted time window:")
         print(f"  Start: {start_time}")
         print(f"  End:   {end_time}")
