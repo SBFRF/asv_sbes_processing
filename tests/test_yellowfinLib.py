@@ -259,21 +259,30 @@ class TestIsLocalToFRF:
 
     def test_is_local_to_frf_true(self):
         """Test with coordinates local to FRF"""
-        coords = {'yFRF': np.array([500, 1000, 1500])}
+        coords = {
+            'xFRF': np.array([100, 200, 300]),
+            'yFRF': np.array([500, 1000, 1500])
+        }
         result = yellowfinLib.is_local_to_FRF(coords)
 
         assert result is True
 
     def test_is_local_to_frf_false(self):
         """Test with coordinates not local to FRF"""
-        coords = {'yFRF': np.array([50000, 60000, 70000])}
+        coords = {
+            'xFRF': np.array([-100, 200, -300]),
+            'yFRF': np.array([50000, 60000, 70000])
+        }
         result = yellowfinLib.is_local_to_FRF(coords)
 
         assert result is False
 
     def test_is_local_to_frf_boundary(self):
         """Test boundary conditions"""
-        coords = {'yFRF': np.array([-100, 0, 100, 1900])}
+        coords = {
+            'xFRF': np.array([100, 200, 300, 500]),
+            'yFRF': np.array([-100, 0, 100, 1900])
+        }
         result = yellowfinLib.is_local_to_FRF(coords)
 
         assert result is True
