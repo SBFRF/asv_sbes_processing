@@ -62,7 +62,7 @@ def parse_args(__version__):
     parser.add_argument('--sonar_method', type=str, default='default',
                         help="which s500 depth reading to use for time-shifting and bottom reporting, available "
                              f"are {sonar_methods}. default uses instant depth for time syncing and"
-                             " smooth depths for final bathy out; 'smooth' uses smoothed values for both; 'instant' "
+                             " smoothed depths for final bathy out; 'smoothed' uses smoothed values for both; 'instant' "
                              "uses instant values for both; 'qaqc' uses hand-traced values for both "
                              "(assumes sonar data h5 has been traced in sonar_qaqc tool externally)")
     parser.add_argument('--rtklib_executable', type=str, default='ref/rnx2rtkp',
@@ -256,7 +256,7 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
     if sonar_method == 'default':
         sonar_range = sonarData['this_ping_depth_m']
         qualityLogic = sonarData['this_ping_depth_measurement_confidence'] > instant_sonar_confidence
-    elif sonar_method == 'smooth':
+    elif sonar_method == 'smoothed':
         sonar_range = sonarData['smooth_depth_m']
         qualityLogic = sonarData['smoothed_depth_measurement_confidence'] > smoothed_sonar_confidence
     elif sonar_method == 'instant':
@@ -372,7 +372,7 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
                                           sonarData['smooth_depth_m'][idxTimeMatchSonar]
                     sonar_out[tidx] = sonarData['smooth_depth_m'][idxTimeMatchSonar]
 
-                elif sonar_method == 'smooth':
+                elif sonar_method == 'smoothed':
                     elevation_out[tidx] = T_ppk['GNSS_elevation_NAVD88'][idxTimeMatchGNSS] - antenna_offset - \
                                           sonarData['smooth_depth_m'][idxTimeMatchSonar]
                     sonar_out[tidx] = sonarData['smooth_depth_m'][idxTimeMatchSonar]
