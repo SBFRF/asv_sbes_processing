@@ -140,7 +140,7 @@ def loadSonar_ectd032_ascii(
             # os.rmdir(os.path.join(dataPath, fldInterest)) # remove folder data came from
             flist_load = sorted(glob.glob(os.path.join(f_path_sonar, f"*{high_low}*.txt")))
 
-        except:
+        except Exception:
             raise EnvironmentError("The sounder date doesn't match folder date, or there is no data in target folder")
 
     if verbose == 1:
@@ -1093,7 +1093,6 @@ def unpackYellowfinCombinedRaw(fname):
             "fix_quality_GNSS",
             "sonar_smooth_depth",
             "sonar_smooth_confidence",
-            "sonar_instant_depth",
             "sonar_instant_depth",
             "sonar_instant_confidence",
             "sonar_backscatter_out",

@@ -44,7 +44,7 @@ def deconflict_args(args, yaml_config):
     for key, ns_value in vars(args).items():
         # print(key, ns_value)
         # only overwrite when there's a difference (or missing key)
-        if yaml_config.get(key) != ns_value and yaml_config.get(key) != None:
+        if yaml_config.get(key) != ns_value and yaml_config.get(key) is not None:
             print(f"updated {key} from {yaml_config[key]} to {ns_value}")
             yaml_config[key] = ns_value
 
@@ -282,16 +282,22 @@ def main(
             logging.info(f"Skipping {saveFnameSonar}")
     elif sonar_model.lower() in ["d032", "ect-d032"]:
         high_low = yellowfinLib.is_high_low_dual_freq(saveFnameSonar)
-        timeString = timeString + "_low_"
+        if high_low == "low":
+            # Second pass: high-freq file already exists, now process the low frequency
+            timeString = timeString + "_low_"
+            saveFnameSonar = os.path.join(datadir, f"{timeString}_sonarRaw.h5")
+            traced_fname_sonar = os.path.join(datadir, f"{timeString}_sonarRaw_bottomTraced_wholeRecord.h5")
         of_plot = os.path.join(plotDir, f"{timeString}_raw_sonar-ect-d032.png")
-        saveFnameSonar = os.path.join(datadir, f"{timeString}_sonarRaw.h5")  # saves sonar file here
-        yellowfinLib.loadSonar_ectd032_ascii(
-            fpathSonar,
-            h5_ofname=saveFnameSonar,
-            verbose=verbose,
-            of_plot=of_plot,
-            high_low=high_low,
-        )
+        if not os.path.isfile(saveFnameSonar):
+            yellowfinLib.loadSonar_ectd032_ascii(
+                fpathSonar,
+                h5_ofname=saveFnameSonar,
+                verbose=verbose,
+                of_plot=of_plot,
+                high_low=high_low,
+            )
+        else:
+            logging.info(f"Skipping {saveFnameSonar}")
 
     elif not os.path.isfile(saveFnameSonar):
         raise NotImplementedError("sonar option not implemented")
