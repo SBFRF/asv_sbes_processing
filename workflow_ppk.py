@@ -192,6 +192,10 @@ def main(
     yaml_config=None,
 ):
     """This function is the main function for processing ppk GNSS and sonar data for MURG."""
+    if yaml_config is None:
+        raise ValueError(
+            "yaml_config is required. Provide a parsed YAML configuration when calling main()."
+        )
     acceptable_sonar = ["default", "instant", "smoothed", "native", "qaqc"]
     verbose = yaml_config["processing"].get("verbosity", 2)  # overwrite hard argument with yaml
     verbosity_conversion(verbose)
