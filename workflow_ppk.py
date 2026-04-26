@@ -423,12 +423,19 @@ def main(
     # 6.2: load all files we created in previous steps
     sonarData = yellowfinLib.load_h5_to_dictionary(saveFnameSonar)
     trace_bottom_chunk = yaml_config["processing"].get("trace_bottom_chunk_size", 250)
-    if not os.path.exists(traced_fname_sonar):  # if the traced bottom doesn't exist, go into the gui
-        traced_bottom = run_sonar_tracer_gui(saveFnameSonar, trace_bottom_chunk)
+    if trace_bottom_chunk == 0:
+        logging.info(
+            "Skipping bottom tracing because processing.trace_bottom_chunk_size is 0"
+        )
     else:
-        traced_bottom = yellowfinLib.load_h5_to_dictionary(traced_fname_sonar)
-    # now fuse bottom traced to the correct bathy location
-    sonarData = yellowfinLib.swap_human_traced_line(sonarData, traced_bottom)
+        if not os.path.exists(
+            traced_fname_sonar
+        ):  # if the traced bottom doesn't exist, go into the gui
+            traced_bottom = run_sonar_tracer_gui(saveFnameSonar, trace_bottom_chunk)
+        else:
+            traced_bottom = yellowfinLib.load_h5_to_dictionary(traced_fname_sonar)
+        # now fuse bottom traced to the correct bathy location
+        sonarData = yellowfinLib.swap_human_traced_line(sonarData, traced_bottom)
     T_ppk = pd.read_hdf(saveFnamePPK)
     if sonar_method != "native":
         payload_gps_data = yellowfinLib.load_h5_to_dictionary(
