@@ -593,7 +593,7 @@ def main(
     )
     # loop through my common time (.1 s increment) and find associated sonar and gnss values; this might be slow
     for tidx, tt in tqdm.tqdm(enumerate(time_out), desc="Filter & Time Match"):
-        idxTimeMatchGNSS, idxTimeMatchGNSS = None, None
+        idxTimeMatchGNSS, idxTimeMatchSonar = None, None
 
         # first find if there is a time match for sonar
         sonarlogic = np.abs(np.ceil(tt * 10) / 10 - np.ceil(sonar_time_out * 10) / 10)
