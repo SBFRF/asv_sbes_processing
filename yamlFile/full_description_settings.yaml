@@ -13,7 +13,7 @@ gnss:
   ppk_quality_threshold: 1      # this is a quality threshold 1: Fixed, 2: Float, 4:DGPS, 5: single
                               # see appendix B for  more details: https://rtkexplorer.com/pdfs/manual_demo5.pdf  ")
 sonar:
-  model: s500            # acceptable [s500, d032]
+  sonar_model: s500      # acceptable [s500, d032]
   sonar_method: default  # which s500 depth reading to use for time-shifting and bottom reporting, avialable "
                          #      "are ['default', 'smooth', 'instant']. default uses instant depth for time syncing and"
                          #      " smooth depths for final bathy out; 'smooth' uses smoothed values for both, 'instant' "
