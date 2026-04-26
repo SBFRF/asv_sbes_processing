@@ -2,6 +2,7 @@
 Simple, robust unit tests that always pass
 These tests validate core functionality without environmental dependencies
 """
+
 import pytest
 import numpy as np
 
@@ -27,15 +28,15 @@ class TestBasicFunctionality:
 
     def test_version_exists(self):
         """Test that version is defined"""
-        assert hasattr(workflow_ppk, '__version__')
+        assert hasattr(workflow_ppk, "__version__")
         assert isinstance(workflow_ppk.__version__, (int, float))
 
     def test_sonar_methods_defined(self):
         """Test that sonar methods list exists"""
-        assert hasattr(workflow_ppk, 'sonar_methods')
-        assert 'default' in workflow_ppk.sonar_methods
-        assert 'instant' in workflow_ppk.sonar_methods
-        assert 'smoothed' in workflow_ppk.sonar_methods
+        assert hasattr(workflow_ppk, "sonar_methods")
+        assert "default" in workflow_ppk.sonar_methods
+        assert "instant" in workflow_ppk.sonar_methods
+        assert "smoothed" in workflow_ppk.sonar_methods
 
 
 class TestUtilityFunctions:
@@ -55,13 +56,19 @@ class TestUtilityFunctions:
 
     def test_is_local_to_frf_true(self):
         """Test FRF coordinate validation - local"""
-        coords = {'yFRF': np.array([500, 1000, 1500])}
+        coords = coords = {
+            "xFRF": np.array([100, 200, 300]),
+            "yFRF": np.array([500, 1000, 1500]),
+        }
         result = yellowfinLib.is_local_to_FRF(coords)
         assert bool(result) is True
 
     def test_is_local_to_frf_false(self):
         """Test FRF coordinate validation - not local"""
-        coords = {'yFRF': np.array([50000, 60000, 70000])}
+        coords = coords = {
+            "xFRF": np.array([-100, 200, -300]),
+            "yFRF": np.array([50000, 60000, 70000]),
+        }
         result = yellowfinLib.is_local_to_FRF(coords)
         assert bool(result) is False
 
@@ -83,10 +90,8 @@ class TestSignalProcessing:
 
     def test_find_time_shift_no_shift(self):
         """Test cross-correlation with identical signals"""
-        signal = np.sin(np.linspace(0, 4*np.pi, 100))
-        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(
-            signal, signal, sampleFreq=1
-        )
+        signal = np.sin(np.linspace(0, 4 * np.pi, 100))
+        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(signal, signal, sampleFreq=1)
         assert abs(phase_lag_samples) < 2
 
     def test_find_time_shift_assertion(self):
@@ -100,24 +105,27 @@ class TestSignalProcessing:
 class TestVerbosityConversion:
     """Tests for logging configuration"""
 
-    @patch('logging.basicConfig')
+    @patch("logging.basicConfig")
     def test_verbosity_debug(self, mock_config):
         """Test DEBUG level"""
         import logging
+
         workflow_ppk.verbosity_conversion(1)
         mock_config.assert_called_with(level=logging.DEBUG)
 
-    @patch('logging.basicConfig')
+    @patch("logging.basicConfig")
     def test_verbosity_info(self, mock_config):
         """Test INFO level"""
         import logging
+
         workflow_ppk.verbosity_conversion(2)
         mock_config.assert_called_with(level=logging.INFO)
 
-    @patch('logging.basicConfig')
+    @patch("logging.basicConfig")
     def test_verbosity_warning(self, mock_config):
         """Test WARNING level"""
         import logging
+
         workflow_ppk.verbosity_conversion(3)
         mock_config.assert_called_with(level=logging.WARN)
 
@@ -132,16 +140,16 @@ class TestArgumentParsing:
 
     def test_parse_args_minimal(self):
         """Test with minimal required arguments"""
-        test_args = ['prog', '-d', '/path/to/data']
-        with patch.object(sys, 'argv', test_args):
+        test_args = ["prog", "-d", "/path/to/data"]
+        with patch.object(sys, "argv", test_args):
             args = workflow_ppk.parse_args(workflow_ppk.__version__)
-            assert args.data_dir == '/path/to/data'
+            assert args.data_dir == "/path/to/data"
             assert args.verbosity == 2
 
     def test_parse_args_missing_required(self):
         """Test that missing required arg raises error"""
-        test_args = ['prog']
-        with patch.object(sys, 'argv', test_args):
+        test_args = ["prog"]
+        with patch.object(sys, "argv", test_args):
             with pytest.raises(SystemExit):
                 workflow_ppk.parse_args(workflow_ppk.__version__)
 
@@ -153,50 +161,54 @@ class TestH5Operations:
         """Test loading H5 file to dictionary"""
         result = yellowfinLib.load_h5_to_dictionary(sample_sonar_data)
         assert isinstance(result, dict)
-        assert 'time' in result
-        assert isinstance(result['time'], np.ndarray)
+        assert "time" in result
+        assert isinstance(result["time"], np.ndarray)
 
     def test_unpack_yellowfin_combined(self, temp_dir):
         """Test unpacking combined raw data"""
         import h5py
+
         fname = temp_dir / "combined.h5"
 
         # Create test file
-        with h5py.File(fname, 'w') as hf:
-            hf.create_dataset('time', data=np.linspace(0, 100, 100))
-            hf.create_dataset('longitude', data=np.ones(100) * -75.0)
-            hf.create_dataset('latitude', data=np.ones(100) * 35.0)
-            hf.create_dataset('elevation', data=np.random.uniform(-5, 0, 100))
-            hf.create_dataset('fix_quality_GNSS', data=np.ones(100))
-            hf.create_dataset('sonar_smooth_depth', data=np.ones(100))
-            hf.create_dataset('sonar_smooth_confidence', data=np.ones(100))
-            hf.create_dataset('sonar_instant_depth', data=np.ones(100))
-            hf.create_dataset('sonar_instant_confidence', data=np.ones(100))
-            hf.create_dataset('sonar_backscatter_out', data=np.ones(100))
-            hf.create_dataset('bad_lat', data=np.array([]))
-            hf.create_dataset('bad_lon', data=np.array([]))
-            hf.create_dataset('xFRF', data=np.ones(100))
-            hf.create_dataset('yFRF', data=np.ones(100))
-            hf.create_dataset('Profile_number', data=np.ones(100))
+        with h5py.File(fname, "w") as hf:
+            hf.create_dataset("time", data=np.linspace(0, 100, 100))
+            hf.create_dataset("longitude", data=np.ones(100) * -75.0)
+            hf.create_dataset("latitude", data=np.ones(100) * 35.0)
+            hf.create_dataset("elevation", data=np.random.uniform(-5, 0, 100))
+            hf.create_dataset("fix_quality_GNSS", data=np.ones(100))
+            hf.create_dataset("sonar_smooth_depth", data=np.ones(100))
+            hf.create_dataset("sonar_smooth_confidence", data=np.ones(100))
+            hf.create_dataset("sonar_instant_depth", data=np.ones(100))
+            hf.create_dataset("sonar_instant_confidence", data=np.ones(100))
+            hf.create_dataset("sonar_backscatter_out", data=np.ones(100))
+            hf.create_dataset("bad_lat", data=np.array([]))
+            hf.create_dataset("bad_lon", data=np.array([]))
+            hf.create_dataset("xFRF", data=np.ones(100))
+            hf.create_dataset("yFRF", data=np.ones(100))
+            hf.create_dataset("Profile_number", data=np.ones(100))
 
         result = yellowfinLib.unpackYellowfinCombinedRaw(str(fname))
         assert isinstance(result, dict)
-        assert len(result['time']) == 100
+        assert len(result["time"]) == 100
 
 
 @pytest.mark.parametrize("verbosity", [1, 2, 3])
 def test_all_verbosity_levels(verbosity):
     """Parameterized test for all verbosity levels"""
-    with patch('logging.basicConfig'):
+    with patch("logging.basicConfig"):
         workflow_ppk.verbosity_conversion(verbosity)
         # If we get here without exception, it worked
 
 
-@pytest.mark.parametrize("signal_length,cutoff,fs", [
-    (100, 10, 100),
-    (50, 5, 50),
-    (200, 20, 200),
-])
+@pytest.mark.parametrize(
+    "signal_length,cutoff,fs",
+    [
+        (100, 10, 100),
+        (50, 5, 50),
+        (200, 20, 200),
+    ],
+)
 def test_filter_various_configs(signal_length, cutoff, fs):
     """Test filter with various configurations"""
     signal = np.random.randn(signal_length)
