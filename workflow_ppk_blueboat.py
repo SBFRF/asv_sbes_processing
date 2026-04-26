@@ -597,6 +597,5 @@ if __name__ == "__main__":
         ppk_quality_threshold=args.ppk_quality_threshold,
         smoothed_sonar_confidence=args.smoothed_sonar_confidence,
         instant_sonar_confidence=args.instant_sonar_confidence,
-        extra_args=extra_args,
     )
     logging.info(f"success processing {args.data_dir}")
