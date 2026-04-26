@@ -14,6 +14,8 @@ def run_sonar_tracer_gui(*args, **kwargs):
         ) from exc
 
     return _run_sonar_tracer_gui(*args, **kwargs)
+
+
 # matplotlib.use("TkAgg")
 from scipy import interpolate, signal
 import py2netCDF
@@ -205,9 +207,7 @@ def main(
 ):
     """This function is the main function for processing ppk GNSS and sonar data for MURG."""
     if yaml_config is None:
-        raise ValueError(
-            "yaml_config is required. Provide a parsed YAML configuration when calling main()."
-        )
+        raise ValueError("yaml_config is required. Provide a parsed YAML configuration when calling main().")
     acceptable_sonar = ["default", "instant", "smoothed", "native", "qaqc"]
     verbose = yaml_config["processing"].get("verbosity", 2)  # overwrite hard argument with yaml
     verbosity_conversion(verbose)
@@ -424,13 +424,9 @@ def main(
     sonarData = yellowfinLib.load_h5_to_dictionary(saveFnameSonar)
     trace_bottom_chunk = yaml_config["processing"].get("trace_bottom_chunk_size", 250)
     if trace_bottom_chunk == 0:
-        logging.info(
-            "Skipping bottom tracing because processing.trace_bottom_chunk_size is 0"
-        )
+        logging.info("Skipping bottom tracing because processing.trace_bottom_chunk_size is 0")
     else:
-        if not os.path.exists(
-            traced_fname_sonar
-        ):  # if the traced bottom doesn't exist, go into the gui
+        if not os.path.exists(traced_fname_sonar):  # if the traced bottom doesn't exist, go into the gui
             traced_bottom = run_sonar_tracer_gui(saveFnameSonar, trace_bottom_chunk)
         else:
             traced_bottom = yellowfinLib.load_h5_to_dictionary(traced_fname_sonar)
