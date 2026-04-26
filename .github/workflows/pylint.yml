@@ -32,4 +32,4 @@ jobs:
     
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py') --max-line-length=100 --output=lint.txt || true
+        pylint $(git ls-files '*.py') --max-line-length=120 --output=lint.txt || true
