@@ -1,7 +1,19 @@
 import os
 import matplotlib
-from bottomTracerGUI import run_sonar_tracer_gui
 
+
+def run_sonar_tracer_gui(*args, **kwargs):
+    try:
+        from bottomTracerGUI import run_sonar_tracer_gui as _run_sonar_tracer_gui
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise RuntimeError(
+            "The sonar tracer GUI requires optional GUI dependencies "
+            "(such as tkinter) that are not available in this environment. "
+            "Run without tracing in headless/CI environments, or install the "
+            "required GUI packages to use sonar tracing."
+        ) from exc
+
+    return _run_sonar_tracer_gui(*args, **kwargs)
 # matplotlib.use("TkAgg")
 from scipy import interpolate, signal
 import py2netCDF
