@@ -211,7 +211,7 @@ def main(
     logging.debug(f"saving intermediate files for GNSS here: {saveFnameGNSS}")
     ## load files
     if not os.path.isfile(saveFnameSonar):
-        yellowfinLib.loadSonar_s500_binary(fpathSonar, outfname=saveFnameSonar, verbose=verbose)
+        yellowfinLib.loadSonar_s500_binary(fpathSonar, h5_ofname=saveFnameSonar, verbose=verbose)
     else:
         logging.info(f"Skipping {saveFnameSonar}")
     # then load NMEA files
