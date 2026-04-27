@@ -425,3 +425,111 @@ def test_write_various_data_types(temp_dir, data_type, test_value):
     assert 'var' in fid.variables
 
     fid.close()
+
+
+class TestWriteXyz:
+    """Tests for write_xyz function"""
+
+    def _make_data(self, n=5):
+        """Helper: produce a minimal data dict with Longitude, Latitude, Elevation."""
+        return {
+            'Longitude': np.linspace(-76.0, -75.9, n),
+            'Latitude': np.linspace(36.1, 36.2, n),
+            'Elevation': np.linspace(-2.0, 0.5, n),
+        }
+
+    def test_write_xyz_creates_file(self, temp_dir):
+        """write_xyz should create the output file."""
+        xyz_file = str(temp_dir / "output.xyz")
+        data = self._make_data()
+        result = py2netCDF.write_xyz(xyz_file, data)
+        assert os.path.exists(xyz_file)
+        assert result == xyz_file
+
+    def test_write_xyz_default_header(self, temp_dir):
+        """First line should be the default header with column names separated by commas."""
+        xyz_file = str(temp_dir / "output.xyz")
+        data = self._make_data()
+        py2netCDF.write_xyz(xyz_file, data)
+        with open(xyz_file) as f:
+            header = f.readline().strip()
+        assert header == 'Longitude,Latitude,Elevation'
+
+    def test_write_xyz_custom_header(self, temp_dir):
+        """Custom header string should be used when provided."""
+        xyz_file = str(temp_dir / "output.xyz")
+        data = self._make_data()
+        py2netCDF.write_xyz(xyz_file, data, header='X Y Z')
+        with open(xyz_file) as f:
+            header = f.readline().strip()
+        assert header == 'X Y Z'
+
+    def test_write_xyz_row_count(self, temp_dir):
+        """File should have header + one row per data point."""
+        n = 7
+        xyz_file = str(temp_dir / "output.xyz")
+        data = self._make_data(n)
+        py2netCDF.write_xyz(xyz_file, data)
+        with open(xyz_file) as f:
+            lines = f.readlines()
+        assert len(lines) == n + 1  # header + n data rows
+
+    def test_write_xyz_data_values(self, temp_dir):
+        """Written values should match the input data."""
+        xyz_file = str(temp_dir / "output.xyz")
+        data = self._make_data(3)
+        py2netCDF.write_xyz(xyz_file, data)
+        with open(xyz_file) as f:
+            lines = f.readlines()
+        # Parse the first data row (index 1 — skip header); default delimiter is comma
+        x, y, z = [float(v) for v in lines[1].split(',')]
+        assert np.isclose(x, data['Longitude'][0])
+        assert np.isclose(y, data['Latitude'][0])
+        assert np.isclose(z, data['Elevation'][0])
+
+    def test_write_xyz_custom_keys(self, temp_dir):
+        """Custom x/y/z keys should be respected."""
+        xyz_file = str(temp_dir / "output.xyz")
+        data = {
+            'Easting': np.array([400000.0, 400001.0]),
+            'Northing': np.array([3990000.0, 3990001.0]),
+            'Elevation': np.array([-1.0, -0.5]),
+        }
+        py2netCDF.write_xyz(xyz_file, data, x_key='Easting', y_key='Northing', z_key='Elevation')
+        with open(xyz_file) as f:
+            lines = f.readlines()
+        assert lines[0].strip() == 'Easting,Northing,Elevation'
+        x, y, z = [float(v) for v in lines[1].split(',')]
+        assert np.isclose(x, 400000.0)
+        assert np.isclose(y, 3990000.0)
+
+    def test_write_xyz_space_delimiter(self, temp_dir):
+        """Space delimiter should produce space-separated output."""
+        xyz_file = str(temp_dir / "output.xyz")
+        data = self._make_data(2)
+        py2netCDF.write_xyz(xyz_file, data, delimiter=' ')
+        with open(xyz_file) as f:
+            lines = f.readlines()
+        # Header should use spaces
+        assert lines[0].strip() == 'Longitude Latitude Elevation'
+        # Data rows should also use spaces
+        parts = lines[1].split()
+        assert len(parts) == 3
+
+    def test_write_xyz_missing_key_raises(self, tmp_path):
+        """Missing key in data should raise KeyError with a helpful message."""
+        xyz_file = str(tmp_path / "output.xyz")
+        data = {'Longitude': np.array([0.0]), 'Latitude': np.array([0.0])}
+        with pytest.raises(KeyError, match="Elevation"):
+            py2netCDF.write_xyz(xyz_file, data)
+
+    def test_write_xyz_length_mismatch_raises(self, tmp_path):
+        """Arrays of different lengths should raise ValueError."""
+        xyz_file = str(tmp_path / "output.xyz")
+        data = {
+            'Longitude': np.array([0.0, 1.0]),
+            'Latitude': np.array([0.0, 1.0, 2.0]),  # wrong length
+            'Elevation': np.array([0.0, 1.0]),
+        }
+        with pytest.raises(ValueError, match="same length"):
+            py2netCDF.write_xyz(xyz_file, data)

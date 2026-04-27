@@ -431,6 +431,10 @@ def main(datadir, geoid, makePos=True, verbose=2, sonar_method='default', rtklib
     py2netCDF.makenc_generic(ofname, globalYaml='yamlFile/transect_global.yml',
                              varYaml='yamlFile/transect_variables.yml', data=data)
 
+    ## write XYZ file for compatibility with ArcGIS and other GIS software
+    xyz_ofname = os.path.join(datadir, f'FRF_geomorphology_elevationTransects_survey_{timeString}.xyz')
+    py2netCDF.write_xyz(xyz_ofname, data)
+
 
     outputfile = os.path.join(datadir, f'{timeString}_totalCombinedRawData.h5')
     with h5py.File(outputfile, 'w') as hf:
