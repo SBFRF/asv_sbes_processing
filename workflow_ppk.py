@@ -259,6 +259,29 @@ def main(
 
     # sonar data
     fpathSonar = os.path.join(datadir, sonar_model)  # reads sonar from here
+    
+    # Handle case-insensitive and alternative folder naming for sonar data
+    if not os.path.isdir(fpathSonar) and sonar_model.lower() in ["d032", "ect-d032"]:
+        # Try alternative folder names and nested structures
+        possible_folders = [
+            os.path.join(datadir, "ect-D032"),  # Original casing
+            os.path.join(datadir, "ect-d032"),  # Lowercase
+            os.path.join(datadir, "ECT-D032"),  # Uppercase
+        ]
+        for alt_path in possible_folders:
+            if os.path.isdir(alt_path):
+                # Check if there's a date subfolder inside
+                date_subfolders = [d for d in os.listdir(alt_path) 
+                                   if os.path.isdir(os.path.join(alt_path, d)) 
+                                   and d.isdigit()]
+                if date_subfolders:
+                    # Use the first (or matching) date subfolder
+                    fpathSonar = os.path.join(alt_path, date_subfolders[0])
+                    break
+                elif os.path.isdir(alt_path):
+                    # If no date subfolder, use the alternative path directly
+                    fpathSonar = alt_path
+                    break
     saveFnameSonar = os.path.join(datadir, f"{timeString}_sonarRaw.h5")  # saves sonar file here
     traced_fname_sonar = os.path.join(datadir, f"{timeString}_sonarRaw_bottomTraced_wholeRecord.h5")
     # NMEA data from sonar, this is not Post Processed Kinematic (PPK) data.  It is used for only cursory or
