@@ -1,11 +1,11 @@
     # Command-Line Interface: (OPTIONAL) Flags
+gnss_antenna_offset_m: 0.25   # vertical offset between GNSS antenna and sonar.
 
 processing:
   verbosity: 2           #  sets verbosity for debug,
                          #                    1=Debug (most)
                          #                    2=Info (normal)
                          #                    3=Warning (least)
-  antenna_offset: 0.25   # vertical offset between GNSS antenna and sonar.
   ppk_quality_threshold: 5
 
   time_sync_method: native  # which s500 depth reading to use for time-shifting and bottom reporting, avialable "
