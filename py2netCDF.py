@@ -13,6 +13,60 @@ import datetime as DT
 import time as ttime
 
 
+def write_xyz(outputfname, data, x_key='Longitude', y_key='Latitude', z_key='Elevation', delimiter=' ', header=None):
+    """Write X, Y, Z data to a plain-text XYZ file.
+
+    The XYZ format is a simple whitespace- or comma-delimited text file with
+    one point per line.  It is supported by ArcGIS, QGIS, and many other GIS
+    applications that cannot open netCDF files.
+
+    Args:
+        outputfname (str): Path for the output XYZ file.
+        data (dict): Dictionary containing at minimum the keys specified by
+            *x_key*, *y_key*, and *z_key*.
+        x_key (str): Key in *data* to use as the X column (default
+            ``'Longitude'``).
+        y_key (str): Key in *data* to use as the Y column (default
+            ``'Latitude'``).
+        z_key (str): Key in *data* to use as the Z column (default
+            ``'Elevation'``).
+        delimiter (str): Column delimiter written between values (default
+            ``' '``).
+        header (str or None): Optional single-line header string written as the
+            first line of the file.  If *None* a default header derived from
+            the column keys is used.
+
+    Returns:
+        str: Path of the written file (*outputfname*).
+    """
+    # Validate that all required keys are present
+    for key in (x_key, y_key, z_key):
+        if key not in data:
+            raise KeyError(f"Required key '{key}' not found in data dictionary. "
+                           f"Available keys: {list(data.keys())}")
+
+    x_vals = np.asarray(data[x_key]).ravel()
+    y_vals = np.asarray(data[y_key]).ravel()
+    z_vals = np.asarray(data[z_key]).ravel()
+
+    # Validate that all arrays have the same length
+    if not (len(x_vals) == len(y_vals) == len(z_vals)):
+        raise ValueError(
+            f"All coordinate arrays must have the same length. "
+            f"Got: {x_key}={len(x_vals)}, {y_key}={len(y_vals)}, {z_key}={len(z_vals)}"
+        )
+
+    if header is None:
+        header = delimiter.join([x_key, y_key, z_key])
+
+    with open(outputfname, 'w') as fid:
+        fid.write(header + '\n')
+        for x, y, z in zip(x_vals, y_vals, z_vals):
+            fid.write(f'{x}{delimiter}{y}{delimiter}{z}\n')
+
+    return outputfname
+
+
 def makenc_generic(inputfname, globalYaml, varYaml, data):
     """
     
