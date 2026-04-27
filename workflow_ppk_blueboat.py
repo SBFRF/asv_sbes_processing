@@ -335,14 +335,14 @@ def main(
     if sonar_method == "default":
         sonar_range = sonarData["this_ping_depth_m"]
         qualityLogic = sonarData["this_ping_depth_measurement_confidence"] > instant_sonar_confidence
-    elif sonar_method == "smooth":
+    elif sonar_method == "smoothed":
         sonar_range = sonarData["smooth_depth_m"]
         qualityLogic = sonarData["smoothed_depth_measurement_confidence"] > smoothed_sonar_confidence
     elif sonar_method == "instant":
         sonar_range = sonarData["this_ping_depth_m"]
         qualityLogic = sonarData["this_ping_depth_measurement_confidence"] > instant_sonar_confidence
     else:
-        raise ValueError('acceptable sonar methods include ["instant", "smooth"]')
+        raise ValueError('acceptable sonar methods include ["instant", "smoothed"]')
     # use the above to adjust whether you want smoothed/filtered data or raw ping depth values
 
     ofname = os.path.join(plotDir, "SonarBackScatter.png")
