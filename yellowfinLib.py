@@ -7,6 +7,9 @@ import struct
 import threading
 import time
 import logging
+import warnings
+import tempfile
+import requests
 
 import h5py
 import netCDF4 as nc
@@ -23,6 +26,8 @@ import contextily as ctx
 from pyproj import Transformer
 from scipy.signal import correlate
 from pygeodesy import geoids
+from posixpath import join as urljoin
+
 
 def read_emlid_pos(fldrlistPPK, plot=False, saveFname=None):
     """read and parse multiple pos files in multiple folders provided
@@ -94,13 +99,227 @@ def read_emlid_pos(fldrlistPPK, plot=False, saveFname=None):
     return T_ppk
 
 
-def loadSonar_s500_binary(dataPath, outfname=None, verbose=False):
-    """Loads and concatenates all of the binary files (*.dat) located in the dataPath location
+def loadSonar_ectd032_ascii(
+    f_path_sonar: str,
+    h5_ofname: str,
+    verbose: bool = False,
+    of_plot=None,
+    high_low="low",
+    combine=False,
+):
+    level = logging.WARN
+    if verbose == 1:
+        level = logging.INFO
+    elif verbose == 2:
+        level = logging.DEBUG
+    logging.basicConfig(level=level)
+    flist_load = sorted(glob.glob(os.path.join(f_path_sonar, f"*{high_low}*.txt")))
+    # "/data/blueboat/2025/{date.strftime('%Y%m%d')}/ect-D032/{date.strftime('%Y-%m-%d')}/ECT-D032_{high_low}_{date.strftime('%Y%m%d')}-*.txt"))
+    if len(flist_load) == 0:  # if i didn't find it first, maybe i need to unpack in a dated subfolder
+        # try to move dat files out of a folder with the same name as the base folder  in the s500 folder
+        try:
+            fldInterest = [i for i in os.listdir(f_path_sonar) if ".dat" not in i][0]
+            parts_interst = fldInterest.split("-")
+            flist = glob.glob(
+                os.path.join(
+                    f_path_sonar,
+                    fldInterest,
+                    f"{parts_interst[-1] + parts_interst[0] + parts_interst[1]}*.dat",
+                )
+            )
+            if len(flist) < 1:  # this is the new file name (file name updated late August 2024)
+                flist = glob.glob(
+                    os.path.join(
+                        f_path_sonar,
+                        fldInterest,
+                        f"*{high_low}_{''.join(parts_interst)}*.txt",
+                    )
+                )
+            toDir = "/" + os.path.join(*flist[0].split(os.sep)[:-2])
+            [shutil.move(l, toDir) for l in flist]
+            # os.rmdir(os.path.join(dataPath, fldInterest)) # remove folder data came from
+            flist_load = sorted(glob.glob(os.path.join(f_path_sonar, f"*{high_low}*.txt")))
+
+        except Exception:
+            raise EnvironmentError("The sounder date doesn't match folder date, or there is no data in target folder")
+
+    if verbose == 1:
+        print(f"processing {len(flist_load)} ect-d032 files data files")
+    backscatter_total, metadata_total = [], []
+    backscatter_expected_size = None
+    for ff, fname_1 in enumerate(flist_load):
+        if verbose == 1:
+            print(f"{ff} processing {fname_1}")
+        with open(fname_1, "r", encoding="utf-8") as fid:
+            backscatter_header_list, backscatter_fname1, metadata_fname1 = [], [], []
+            counter = 0  # count number of dashed lines to mark end of header
+            for ll, line in enumerate(fid):
+                line = line.strip()
+                if verbose == 1:
+                    logging.debug(f"{ll}, {line}")
+                split_line = line.split(",")
+                if len(split_line) == 6:
+                    metadata_fname1.append(split_line)
+                elif len(split_line) > 6 and ll < 3:
+                    backscatter_header_list.append(split_line)
+                elif len(split_line) > 6:
+                    # # writes backscatter data to list to be put to array later
+                    if (
+                        ff == 0 and backscatter_expected_size == None
+                    ):  # if its the first file, assume its properly formed
+                        backscatter_fname1.append(split_line)
+                        backscatter_expected_size = len(split_line)
+                    elif ff == 0:
+                        backscatter_fname1.append(split_line)
+                    elif (
+                        len(split_line) == backscatter_expected_size
+                    ):  # ((len(split_line) ==) backscatter.shape[1]) or (len(split_line) == backscatter_total[0].shape[1]):  # check to make sure following are properly formed
+                        backscatter_fname1.append(split_line)
+                    else:  # clean up metadata line to properly aligh
+                        _ = metadata_fname1.pop()  # remove last field
+
+                elif counter == 2 and ll % 2 == 1:
+                    metadata_fname1.append(line.split(","))
+                elif line.startswith("-----"):
+                    counter += 1
+                elif line.startswith("#Tx_Frequency"):
+                    static_stuff = fid.readline().strip().split(",")
+                    tx_freq_hz = int(static_stuff[0])
+                    range_m = float(static_stuff[1])
+                    interval_dt_s = float(static_stuff[2])
+                    threshold_per = float(static_stuff[3]) / 100
+                    offset_m = float(static_stuff[4])
+                    deadzone_m = float(static_stuff[5])
+                    pulse_length_uks = float(static_stuff[6])
+                    tx_power_db = float(static_stuff[7])
+                    tvg_gain = float(static_stuff[8])
+                    tvg_slope = float(static_stuff[9])
+                    tvg_mode = float(static_stuff[10])
+                    output_mode = int(static_stuff[11])
+            # print(metadata)
+            # meta_header = metadata_fname1[0]
+            metadata = np.array(metadata_fname1[1:], dtype=float)
+            backscatter_header = backscatter_header_list
+            backscatter = np.array(backscatter_fname1, dtype=int)
+        # now append recent data to total data
+        if len(backscatter_fname1) > 0:
+            # print(f'tada _ loaded {fname_1}, shape: {np.array(backscatter_fname1).shape}')
+            backscatter_total.append(backscatter)
+            metadata_total.append(metadata)
+    # convert back to total arrays
+    backscatter_total = np.vstack(backscatter_total, dtype=int)
+    metadata_total = np.vstack(metadata_total, dtype=float)
+    depth_m = np.zeros_like(backscatter_total[:, 1])
+    if np.size(metadata_fname1) != 0:  # this is to catch a data set that didn't print headers
+        # log time varying metadata
+        time_work_s = metadata_total[:, 0]
+        ping_number = metadata_total[:, 1]
+        depth_m = metadata_total[:, 2]
+        temp_degc = metadata_total[:, 3]
+        roll_deg = metadata_total[:, 4]
+        pitch_deg = metadata_total[:, 5]
+        # now log meta data to variables (static for collection)
+        tx_freq_hz = int(backscatter_header[1][0])
+        range_m = float(backscatter_header[1][1].strip())
+        interval_dt_s = float(backscatter_header[1][2].strip())
+        threshold_per = float(backscatter_header[1][3].strip())
+        offset_m = float(backscatter_header[1][4].strip())
+        deadzone_m = float(backscatter_header[1][5].strip())
+        pulse_length_uks = float(backscatter_header[1][6].strip())
+        tx_power_db = float(backscatter_header[1][7].strip())
+        tvg_gain = float(backscatter_header[1][8].strip())
+        tvg_slope = float(backscatter_header[1][9].strip())
+        tvg_mode = float(backscatter_header[1][10].strip())
+        output_mode = int(backscatter_header[1][11].strip())
+        bin_size_m = range_m / np.shape(backscatter_total)[1]
+        range_m = np.linspace(0, range_m, backscatter_total.shape[1])
+
+    if of_plot is not None:
+        # now plot all data
+        plt.figure(figsize=(22, 8))
+        plt.pcolormesh(backscatter_total.T)
+        # norm=colors.LogNorm(vmin=.0001, vmax=backscatter_total.max()))
+        plt.plot(depth_m / bin_size_m, "r:", alpha=0.4, label="OEM depth")
+        plt.ylabel("bin count")
+        plt.xlabel("time (s)")
+        plt.title(f"data collected: {fname_1.split('/')[-2]}")
+        cbar = plt.colorbar()
+        cbar.set_label("backscatter")
+        plt.legend(loc="upper right")
+        plt.tight_layout(rect=[0.01, 0.01, 1, 0.99])
+        plt.savefig(of_plot.split(".")[0] + f"_{high_low}.png")
+        plt.close()
+
+    if h5_ofname is not None:
+        with h5py.File(h5_ofname, "w") as hf:
+            nans = np.ones_like(time_work_s)
+            # data that are singular valued
+            hf.create_dataset("min_pwr", data=tx_power_db)
+            hf.create_dataset("ping_duration", data=pulse_length_uks)
+            hf.create_dataset("start_mm", data=deadzone_m)
+            hf.create_dataset("length_mm", data=range_m * 1000)
+            hf.create_dataset("start_ping_hz", data=tx_freq_hz)
+            hf.create_dataset("depth_offset_m", data=offset_m)  # artificial adjustment to range/depth
+            # data dimensioned by time
+            hf.create_dataset("time", data=time_work_s)
+            hf.create_dataset("ping_count", data=ping_number)
+            hf.create_dataset("temp_degc", data=temp_degc)
+            hf.create_dataset("pitch_deg", data=pitch_deg)
+            hf.create_dataset("roll_deg", data=roll_deg)
+            hf.create_dataset("smooth_depth_m", data=depth_m)
+            hf.create_dataset("profile_data", data=backscatter_total.T)  # putting time as first axis
+            hf.create_dataset("end_ping_hz", data=tx_freq_hz)
+            hf.create_dataset("this_ping_depth_m", data=depth_m)
+            hf.create_dataset("timestamp_msec", data=time_work_s - time_work_s[0])
+            hf.create_dataset("range_m", data=range_m)
+            # below are semi-confident guesses
+            hf.create_dataset("num_results", data=np.arange(np.shape(backscatter_total)[1]))  # number of range bin
+            hf.create_dataset("adc_sample_hz", data=interval_dt_s)
+            hf.create_dataset("analog_gain", data=tx_power_db)
+            hf.create_dataset("max_pwr", data=tx_power_db)
+
+            # data that are nans (established as pre-existing)
+            hf.create_dataset("gain_index", data=nans)
+            hf.create_dataset("decimation", data=nans)
+            hf.create_dataset("this_ping_depth_measurement_confidence", data=nans)
+            hf.create_dataset("smoothed_depth_measurement_confidence", data=nans)
+
+
+def swap_human_traced_line(sonarData, traced_bottom, plot_fname=None):
+    sonarData["oem_depth_smooth_m"] = sonarData["smooth_depth_m"]
+    sonarData["oem_depth_instant_m"] = sonarData["this_ping_depth_m"]
+
+    # range_bin = traced_bottom['qaqc_depth_line'][:, 1][traced_bottom['qaqc_depth_line'][:, 1] > 0]   #fill values are -999
+    idx_fill = traced_bottom["qaqc_depth_line"][:, 1] < 0
+    traced_bottom["qaqc_depth_line"][idx_fill, 1] = np.nan
+    traced_range_m = sonarData["range_m"]
+
+    # now write out the bottom range
+    sonarData["smooth_depth_m"] = traced_bottom["qaqc_depth_line"][:, 1]
+    sonarData["this_ping_depth_m"] = traced_bottom["qaqc_depth_line"][:, 1]
+    sonarData["smoothed_depth_measurement_confidence"] = np.ones_like(sonarData["smooth_depth_m"]) * 100
+    sonarData["this_ping_depth_measurement_confidence"] = np.ones_like(sonarData["smooth_depth_m"]) * 100
+
+    if plot_fname is not None:
+        plt.figure()
+        plt.subplot(211)
+        plt.plot(traced_bottom["qaqc_depth_line"][:, 1], ".")
+        plt.plot((traced_bottom["qaqc_depth_line"][:, 1].astype(int) > 0) * 500)
+        plt.ylabel("bin count")
+        plt.subplot(212)
+        plt.plot(traced_range_m, ".")
+        plt.ylabel("cleaned depth [m]")
+        plt.savefig("traced_range.png")
+        plt.close()
+    return sonarData
+
+
+def loadSonar_s500_binary(dataPath, h5_ofname=None, verbose=False):
+    """Loads and concatenates all binary files (*.dat) located in the dataPath location
 
     :param dataPath: search path for sonar data files
     :param outfname: string to save h5 file. If None it will skip this process. (Default =None)
     :param verbose: turn on print statement for file names as loading (1 is little print, 2 is detailed print)
-    :return: pandas data frame of sonar data
     """
     # find dat files for sonar
     dd = sorted(glob.glob(os.path.join(dataPath, "*.dat")))
@@ -117,16 +336,14 @@ def loadSonar_s500_binary(dataPath, outfname=None, verbose=False):
                 )
             )
             if len(flist) < 1:  # this is the new file name (file name updated late August 2024)
-                flist = glob.glob(os.path.join(dataPath, fldInterest, ''.join(parts_interst)+'*.dat'))
+                flist = glob.glob(os.path.join(dataPath, fldInterest, "".join(parts_interst) + "*.dat"))
             toDir = "/" + os.path.join(*flist[0].split(os.sep)[:-2])
             [shutil.move(l, toDir) for l in flist]
             # os.rmdir(os.path.join(dataPath, fldInterest)) # remove folder data came from
             dd = sorted(glob.glob(os.path.join(dataPath, "*.dat")))
 
         except:
-            raise EnvironmentError(
-                "The sounder date doesn't match folder date, or there is no data in that folder"
-            )
+            raise EnvironmentError("The sounder date doesn't match folder date, or there is no data in that folder")
 
     # https://docs.ceruleansonar.com/c/v/s-500-sounder/appendix-f-programming-api
     ij, i3 = 0, 0
@@ -277,9 +494,7 @@ def loadSonar_s500_binary(dataPath, outfname=None, verbose=False):
                     ij += 1
 
     # clean up array's from over allocation to free up memory and data
-    idxShort = (
-        num_results != 0
-    ).sum()  # np.argwhere(num_results != 0).max()  # identify index for end of data to keep
+    idxShort = (num_results != 0).sum()  # np.argwhere(num_results != 0).max()  # identify index for end of data to keep
     num_results = np.median(num_results[:idxShort]).astype(int)  # num_results[:idxShort][0]
 
     # make data frame for output
@@ -308,13 +523,11 @@ def loadSonar_s500_binary(dataPath, outfname=None, verbose=False):
     profile_data = profile_data[:idxShort, :num_results].T
 
     # now save output file (can't save as pandas because of multi-dimensional sonar data)
-    if outfname is not None:
-        with h5py.File(outfname, "w") as hf:
+    if h5_ofname is not None:
+        with h5py.File(h5_ofname, "w") as hf:
             hf.create_dataset("min_pwr", data=min_pwr)
             hf.create_dataset("ping_duration", data=ping_duration_sec)
-            hf.create_dataset(
-                "time", data=nc.date2num(dt_profile, "seconds since 1970-01-01")
-            )  # TODO: confirm tz
+            hf.create_dataset("time", data=nc.date2num(dt_profile, "seconds since 1970-01-01"))  # TODO: confirm tz
             hf.create_dataset("smooth_depth_m", data=smooth_depth_m)
             hf.create_dataset("profile_data", data=profile_data)  # putting time as first axis
             hf.create_dataset("num_results", data=num_results)
@@ -334,6 +547,39 @@ def loadSonar_s500_binary(dataPath, outfname=None, verbose=False):
             hf.create_dataset("range_m", data=rangev / 1000)
 
 
+def save_h5_to_dictionary(data_dict, h5_file_path):
+    """
+    Save a dictionary to an HDF5 file.
+
+    Args:
+        data_dict (dict): The dictionary to save.
+        h5_file_path (str): Path where the HDF5 file will be saved.
+    """
+
+    def recursive_save(group, data):
+        """
+        Recursively save dictionary entries to HDF5 groups and datasets.
+
+        Args:
+            group (h5py.Group): The group where data will be stored.
+            data (dict or ndarray): Data to store (can be a nested dictionary or dataset).
+        """
+        if isinstance(data, dict):
+            # If the data is a dictionary, create subgroups and save recursively
+            for key, value in data.items():
+                # Create subgroup for the key
+                subgroup = group.create_group(key)
+                # Recursively save its contents
+                recursive_save(subgroup, value)
+        else:
+            # If the data is not a dictionary, save it as a dataset
+            group.create_dataset("data", data=data)
+
+    with h5py.File(h5_file_path, "w") as f:
+        # Start saving from the root group
+        recursive_save(f, data_dict)
+
+
 def load_h5_to_dictionary(fname):
     """Loads already created H5 file from the sonar data."""
     hf = h5py.File(fname, "r")
@@ -345,7 +591,12 @@ def load_h5_to_dictionary(fname):
 
 
 def makePOSfileFromRINEX(
-    roverObservables, baseObservables, navFile, outfname, executablePath="rnx2rtkp", **kwargs
+    roverObservables,
+    baseObservables,
+    navFile,
+    outfname,
+    executablePath="rnx2rtkp",
+    **kwargs,
 ):
     """uses RTKLIB rnx2rtkp to post process
     Args:
@@ -369,14 +620,10 @@ def makePOSfileFromRINEX(
     logging.debug(
         f"converting {os.path.basename(roverObservables)} using RTKLIB: Q=1:fix,2:float,3:sbas,4:dgps,5:single,6:ppp"
     )
-    os.system(
-        f"./{executablePath} -o {outfname} -t -u -f {freq} {roverObservables} {baseObservables} {navFile} {sp3}"
-    )
+    os.system(f"./{executablePath} -o {outfname} -t -u -f {freq} {roverObservables} {baseObservables} {navFile} {sp3}")
 
 
-def plot_single_backscatterProfile(
-    fname, time, sonarRange, profile_data, this_ping_depth_m, smooth_depth_m, index
-):
+def plot_single_backscatterProfile(fname, time, sonarRange, profile_data, this_ping_depth_m, smooth_depth_m, index):
     """Create's a plot that shows full backscatter and individual profile  with identified depths
 
     :param fname:
@@ -428,8 +675,12 @@ def plot_single_backscatterProfile(
 
 def mLabDatetime_to_epoch(dt):
     """Convert matlab datetime to unix Epoch time"""
-    epoch = DT.datetime(1970, 1, 1)
-    delta = dt - epoch
+    try:
+        epoch = DT.datetime(1970, 1, 1, tzinfo=DT.timezone.utc)
+        delta = dt - epoch
+    except TypeError:
+        epoch = DT.datetime(1970, 1, 1)
+        delta = dt - epoch
     return delta.total_seconds()
 
 
@@ -446,9 +697,7 @@ def convertEllipsoid2NAVD88(lats, lons, ellipsoids, geoidFile="g2012bu8.bin"):
     :param geoidFile: pull from https://geodesy.noaa.gov/GEOID/GEOID12B/GEOID12B_CONUS.shtml
     :return: NAVD88 values
     """
-    assert (
-        len(lons) == len(lats) == len(ellipsoids)
-    ), "lons/lats/elipsoids need to be of same length"
+    assert len(lons) == len(lats) == len(ellipsoids), "lons/lats/elipsoids need to be of same length"
     try:
         instance = geoids.GeoidG2012B(geoidFile)
     except ImportError:
@@ -464,7 +713,7 @@ def convertEllipsoid2NAVD88(lats, lons, ellipsoids, geoidFile="g2012bu8.bin"):
     return ellipsoids - geoidHeight
 
 
-def load_yellowfin_NMEA_files(fpath:str, saveFname: str, plotfname: str = False, verbose: int=0) -> None:
+def load_yellowfin_NMEA_files(fpath: str, saveFname: str, plotfname: str = False, verbose: int = 0) -> None:
     """loads and possibly plots NMEA data from Emlid Reach M2 on yellowin
 
     :param fpath: location to search for NMEA data files
@@ -473,16 +722,14 @@ def load_yellowfin_NMEA_files(fpath:str, saveFname: str, plotfname: str = False,
     :param verbose: will print more output when processing if True (default=0), 0-warn, 1-info, 2-debug
     :return:
     """
-    level=logging.WARN
+    level = logging.WARN
     if verbose == 1:
-        level=logging.INFO
+        level = logging.INFO
     elif verbose == 2:
-        level=logging.DEBUG
+        level = logging.DEBUG
     logging.basicConfig(level=level)
     flist = glob.glob(os.path.join(fpath, "*.dat"))
-    dd = sorted(
-        [flist[os.path.getsize(i) > 0] for i in flist]
-    )  # remove files of size zero from processing list
+    dd = sorted([flist[os.path.getsize(i) > 0] for i in flist])  # remove files of size zero from processing list
     if len(dd) == 0:  # if i didn't find it first, maybe i need to unpack
         try:  # try to move dat files out of a folder with the same name as the base folder  in the s500 folder
             fldInterest = [i for i in os.listdir(fpath) if ".dat" not in i][0]
@@ -494,7 +741,7 @@ def load_yellowfin_NMEA_files(fpath:str, saveFname: str, plotfname: str = False,
                 )
             )
             if len(flist) < 1:  # to accomodate the august 2024 filename convention change
-                flist = glob.glob(os.path.join(fpath, fldInterest, ''.join(fldInterest.split('-'))+"*.dat"))
+                flist = glob.glob(os.path.join(fpath, fldInterest, "".join(fldInterest.split("-")) + "*.dat"))
 
             toDir = "/" + os.path.join(*flist[0].split(os.sep)[:-2])
             [shutil.move(l, toDir) for l in flist]
@@ -505,11 +752,17 @@ def load_yellowfin_NMEA_files(fpath:str, saveFname: str, plotfname: str = False,
 
     logging.info(f"processing {len(dd)} GPS data files")
 
-
     ji = 0
     gps_time, lat, lon, altWGS84, altMSL, pc_time_gga = [], [], [], [], [], []
     lat, latHemi, lon, lonHemi, fixQuality, satCount, HDOP = [], [], [], [], [], [], []
-    elevationMSL, eleUnits, geoSep, geoSepUnits, ageDiffGPS, diffRefStation = [], [], [], [], [], []
+    elevationMSL, eleUnits, geoSep, geoSepUnits, ageDiffGPS, diffRefStation = (
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
     for fi in tqdm.tqdm(range(1, len(dd))):
         fname = dd[fi]
 
@@ -570,9 +823,7 @@ def load_yellowfin_NMEA_files(fpath:str, saveFname: str, plotfname: str = False,
                     )  # GPS Fix Quality: represented by anumeric value. Common values
                     # include 0 for no fix, 1 for GPS fix, and 2 for Differential GPS (DGPS) fix.
                     satCount.append(int(stringNMEA[7]))
-                    HDOP.append(
-                        float(stringNMEA[8])
-                    )  # measure of the horizontal accuracy of the GPS fix, represented
+                    HDOP.append(float(stringNMEA[8]))  # measure of the horizontal accuracy of the GPS fix, represented
                     # by a numeric value.
                     altMSL.append(float(stringNMEA[9]))
                     eleUnits.append(stringNMEA[10])
@@ -587,13 +838,15 @@ def load_yellowfin_NMEA_files(fpath:str, saveFname: str, plotfname: str = False,
     lon[lon == 0] = np.nan
     # convert datetimes to epochs for file writing.
     gpstimeobjs = [
-        DT.time(int(str(ii)[:2]), int(str(ii)[2:4]), int(str(ii)[4:6]), int(str(ii)[7:] + "00000"))
+        DT.time(
+            int(str(ii)[:2]),
+            int(str(ii)[2:4]),
+            int(str(ii)[4:6]),
+            int(str(ii)[7:] + "00000"),
+        )
         for ii in gps_time
     ]
-    aa = [
-        DT.datetime.combine(pc_time_gga[ii].date(), gpstimeobjs[ii])
-        for ii in range(len(gpstimeobjs))
-    ]
+    aa = [DT.datetime.combine(pc_time_gga[ii].date(), gpstimeobjs[ii]) for ii in range(len(gpstimeobjs))]
     # now save output file
     with h5py.File(saveFname, "w") as hf:
         hf.create_dataset("lat", data=lat)
@@ -620,7 +873,10 @@ def load_yellowfin_NMEA_files(fpath:str, saveFname: str, plotfname: str = False,
         plt.subplot(122)
         # plt.plot(pc_time_gga, altWGS84, '.-')
         # plt.plot(pc_time_gga, geoSep, label='geoSep')
-        plt.plot(pc_time_gga, altMSL, ".-", label="altMSL")
+        plt.plot(pc_time_gga, altMSL, ".", label="altMSL")
+        plt.ylabel("Altitude MSL [m]")
+        plt.xlabel("time_from_sys_clock")
+        plt.tight_layout()
         plt.savefig(plotfname)
         plt.close()
 
@@ -674,7 +930,7 @@ def butter_lowpass_filter(data, cutoff, fs, order):
     b, a = signal.butter(order, cutoff / fs / 2, "low", analog=False)
     output = signal.filtfilt(b, a, data)
 
-    # ormal_cutoff = cutoff / nyq
+    # normal_cutoff = cutoff / nyq
     # Get the filter coefficients
     # b, a = butter(order, normal_cutoff, btype='low', analog=False)
     # y = filtfilt(b, a, data)
@@ -688,7 +944,7 @@ def loadPPKdata(fldrlistPPK):
     :param fldrlistPPK: a list of folders with ind
     :return: a data frame with loaded ppk data
     """
-
+    logging.log(logging.WARN, "This function is to be depricated - use load_ppk_files_list ")
     T_ppk = pd.DataFrame()
     for fldr in sorted(fldrlistPPK):
         # this is before ppk processing so should agree with nmea strings
@@ -716,20 +972,114 @@ def loadPPKdata(fldrlistPPK):
             #     Tpos = pd.read_csv(fn, sep="\s{2,}", header=10, names=colNames, engine="python")
             # except ValueError:
             #     Tpos = pd.read_csv(fn, sep="\s{2,}", header=12, names=colNames, engine="python")
-            colNames = ["date", "time", "lat", "lon", "height", "Q", "ns", "sdn(m)", "sde(m)", "sdu(m)", "sdne(m)",
-                 "sdeu(m)", "sdun(m)", "age(s)", "ratio"]
-            Tpos = pd.read_fwf(fn, skiprows=12, infer_nrows=1000, names=colNames) # fixed width reader
+            colNames = [
+                "date",
+                "time",
+                "lat",
+                "lon",
+                "height",
+                "Q",
+                "ns",
+                "sdn(m)",
+                "sde(m)",
+                "sdu(m)",
+                "sdne(m)",
+                "sdeu(m)",
+                "sdun(m)",
+                "age(s)",
+                "ratio",
+            ]
+            Tpos = pd.read_fwf(fn, skiprows=12, infer_nrows=1000, names=colNames)  # fixed width reader
             logging.info(f"loaded {fn}")
             if all(Tpos.iloc[-1]):  # if theres nan's in the last row
                 Tpos = Tpos.iloc[:-1]  # remove last row
             # Tpos["datetime"] = pd.to_datetime(Tpos['date'] + Tpos['time'], format="%Y/%m/%d%H:%M:%S.%f", utc=True)
-            T_ppk = pd.concat([T_ppk, Tpos], ignore_index=True) # merge multiple files to single dataframe
+            T_ppk = pd.concat([T_ppk, Tpos], ignore_index=True)  # merge multiple files to single dataframe
 
         except:  # this is in the event there is no data in the pos files
             continue
-    T_ppk["datetime"] = pd.to_datetime(T_ppk['date'] + T_ppk['time'], format="%Y/%m/%d%H:%M:%S.%f", utc=True)
+    T_ppk["datetime"] = pd.to_datetime(T_ppk["date"] + T_ppk["time"], format="%Y/%m/%d%H:%M:%S.%f", utc=True)
     T_ppk["epochTime"] = T_ppk["datetime"].apply(lambda x: x.timestamp())
     return T_ppk
+
+
+def load_ppk_fils_list(flist_ppk):
+    """This function loads a single *.pos file per folder from a list of folders.  Each pos file in the folder has to be
+    named the same as the folder name + .pos
+
+    :param fldrlistPPK: a list of folders with ind
+    :return: a data frame with loaded ppk data
+    """
+
+    T_ppk = pd.DataFrame()
+    for fname in sorted(flist_ppk):
+        # this is before ppk processing so should agree with nmea strings
+        try:
+            # colNames = [
+            #     "datetime",
+            #     "lat",
+            #     "lon",
+            #     "height",
+            #     "Q",
+            #     "ns",
+            #     "sdn(m)",
+            #     "sde(m)",
+            #     "sdu(m)",
+            #     "sdne(m)",
+            #     "sdeu(m)",
+            #     "sdun(m)",
+            #     "age(s)",
+            #     "ratio",
+            # ]
+            # col_widths=[(0,23), (26, 39), (40, 55), (56, 65), (66, 68), (70, 73)]
+            # try:
+            #     Tpos = pd.read_csv(fn, sep="\s{2,}", header=10, names=colNames, engine="python")
+            # except ValueError:
+            #     Tpos = pd.read_csv(fn, sep="\s{2,}", header=12, names=colNames, engine="python")
+            colNames = [
+                "date",
+                "time",
+                "lat",
+                "lon",
+                "height",
+                "Q",
+                "ns",
+                "sdn(m)",
+                "sde(m)",
+                "sdu(m)",
+                "sdne(m)",
+                "sdeu(m)",
+                "sdun(m)",
+                "age(s)",
+                "ratio",
+            ]
+            Tpos = pd.read_fwf(fname, skiprows=12, infer_nrows=1000, names=colNames)  # fixed width reader
+            logging.info(f"loaded {fname}")
+            if all(Tpos.iloc[-1]):  # if theres nan's in the last row
+                Tpos = Tpos.iloc[:-1]  # remove last row
+            # Tpos["datetime"] = pd.to_datetime(Tpos['date'] + Tpos['time'], format="%Y/%m/%d%H:%M:%S.%f", utc=True)
+            T_ppk = pd.concat([T_ppk, Tpos], ignore_index=True)  # merge multiple files to single dataframe
+
+        except:  # this is in the event there is no data in the pos files
+            continue
+    T_ppk["datetime"] = pd.to_datetime(T_ppk["date"] + T_ppk["time"], format="%Y/%m/%d%H:%M:%S.%f", utc=True)
+    T_ppk["epochTime"] = T_ppk["datetime"].apply(lambda x: x.timestamp())
+    return T_ppk
+
+
+def is_high_low_dual_freq(fpath_sonar):
+    try:
+        sonar_data = load_h5_to_dictionary(fpath_sonar)
+        data_keys = sonar_data.keys()
+        assert "profile_data" in data_keys
+        assert "smooth_depth_m" in data_keys
+        high_low = "low"
+    except FileNotFoundError:
+        high_low = "high"
+    except AssertionError:
+        raise RuntimeError("Talk to developer if you see this error")
+
+    return high_low
 
 
 def unpackYellowfinCombinedRaw(fname):
@@ -744,7 +1094,6 @@ def unpackYellowfinCombinedRaw(fname):
             "sonar_smooth_depth",
             "sonar_smooth_confidence",
             "sonar_instant_depth",
-            "sonar_instant_depth",
             "sonar_instant_confidence",
             "sonar_backscatter_out",
             "bad_lat",
@@ -757,7 +1106,7 @@ def unpackYellowfinCombinedRaw(fname):
     return data
 
 
-def plotPlanViewOnArgus(data, geoTifName, ofName=None, argus_time_out_s=120):
+def plot_planview_on_argus(data, geoTifName, ofName=None, argus_time_out_s=120):
     """plots a survey path over a geotiff at the FRF (assumes NC stateplane)
     Args:
         data: this is a dictionary of data loaded with keys of 'longitude', 'latitude', 'elevation'
@@ -771,9 +1120,7 @@ def plotPlanViewOnArgus(data, geoTifName, ofName=None, argus_time_out_s=120):
     """
     coords = geoprocess.FRFcoord(data["Longitude"], data["Latitude"])
     tt = 0
-    while not os.path.isfile(
-        geoTifName
-    ):  # this is waiting for the file to show up, if the download is threaded
+    while not os.path.isfile(geoTifName):  # this is waiting for the file to show up, if the download is threaded
         time.sleep(30)
         tt += 30
         print(f"waited for {tt} seconds for {geoTifName}")
@@ -782,11 +1129,12 @@ def plotPlanViewOnArgus(data, geoTifName, ofName=None, argus_time_out_s=120):
             return
 
     timex = rasterio.open(geoTifName)
-    # array = timex.read()  # for reference, this pulls the image data out of the geotiff object
+
     ## now make plot
     plt.figure(figsize=(14, 10))
     ax1 = plt.subplot()
-    aa = rplt.show(timex, ax=ax1)
+    if geoTifName is not None:
+        aa = rplt.show(timex, ax=ax1)
     a = ax1.scatter(coords["StateplaneE"], coords["StateplaneN"], c=data["Elevation"], vmin=-8)
     cbar = plt.colorbar(a)
     cbar.set_label("depths")
@@ -798,47 +1146,115 @@ def plotPlanViewOnArgus(data, geoTifName, ofName=None, argus_time_out_s=120):
     plt.close()
 
 
-def getArgusImagery(dateOfInterest, ofName=None, imageType="timex", verbose=True):
-    if verbose: logging.basicConfig(level=logging.INFO)
-    # client = Minio("coastalimaging.erdc.dren.mil")
-    # ## now lets find what files are around
-    # objects = client.list_objects('FrfTower', prefix="Processed/alignedObliques/c1", recursive=True,)
-    baseURL = "https://coastalimaging.erdc.dren.mil/FrfTower/Processed/Orthophotos/cxgeo/"
-    fldr = dateOfInterest.strftime("%Y_%m_%d")
-    fname = f'{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.FrfTower.cxgeo.{imageType}.tif'
+def getArgusImagery(
+    dateOfInterest: DT,
+    ofName: str = None,
+    imageType: str = "timex",
+    imageFormat: str = "tif",
+    verbose: bool = True,
+):
+    """
+    This helper function gets argus imagery from CorpsCam to be used as background for plotting.
 
-    logging.info(f"retreiving {baseURL + fldr + fname}")
-    wgetURL = os.path.join(baseURL, fldr, fname)
-    if ofName is None:
-        ofName = os.path.join(os.getcwd(), os.path.basename(wgetURL))
+    Args:
+        dateOfInterest(type:datetime): hour/minute of image
+        ofName(str): what to name the output file on write
+        imageType(str): Needs to be understood type of image (default=Timex)
+        image_format(str): format of file to be returned.  tif will return geotiff in stateplane NC, png will return
+            image in FRF coordinates.
+        verbose(bool): boolean describing level of verbosity
+
+    Returns:
+        ofName
+
+    TODO:
+        Implement checks/direction on "imageType" based on knowledge of what's on the server
+        implement geotiff/png
+
+    """
+    if verbose:
+        logging.basicConfig(level=logging.INFO)
+
+    # URL set-up
+    fldr = dateOfInterest.strftime("%Y_%m_%d")
+    baseURL = "https://coastalimaging.erdc.dren.mil/FrfTower/Processed/Orthophotos/"
+
+    if imageFormat.lower() in ["tif", "geotiff"]:
+        camera_format = "cxgeo"
+        fname = f'{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.FrfTower.{camera_format}.{imageType}.{imageFormat}'
+        url = urljoin(baseURL, camera_format, fldr, fname)
+    elif imageFormat.lower() in ["png", "frf", "jpg"]:
+        camera_format = "cx"
+        fname = f'{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.FrfTower.{camera_format}.{imageType}.{imageFormat}'
+    else:
+        raise NotImplementedError("Only available  ['png', 'frf', 'jpg'] or ['tif', 'geotiff'] ")
+
+    logging.info(f"retreiving {baseURL + camera_format + fldr + fname}")
+    url = urljoin(baseURL, camera_format, fldr, fname)
+
+    # Download the image
     try:
-        wget.download(wgetURL, ofName)
-    except:
-        pass
+        resp = requests.get(url, stream=True, timeout=120)
+        resp.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logging.warning(f"Failed to retrieve Argus imagery: {e}")
+        print(f"Failed to retrieve Argus imagery: {e}")
+        return None
+
+    if ofName is None:
+        ofName = os.path.join(
+            os.getcwd(),
+            f'Argus_{imageType}_{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.{imageFormat}',
+        )
+
+    with open(ofName, "wb") as f:
+        for chunk in resp.iter_content(chunk_size=8192):
+            f.write(chunk)
 
     logging.debug(f"retrieved {ofName}")
     return ofName
 
 
-def threadGetArgusImagery(dateOfInterest, ofName=None, imageType="timex", verbose=True):
+def threadGetArgusImagery(dateOfInterest, ofName=None, imageType="timex", imageFormat="tif", verbose=True):
     if ofName is None:
         ofName = os.path.join(
-            os.getcwd(), f'Argus_{imageType}_{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.tif'
+            os.getcwd(),
+            f'Argus_{imageType}_{dateOfInterest.strftime("%Y%m%dT%H%M%SZ")}.{imageFormat}',
         )
+
     t = threading.Thread(
-        target=getArgusImagery, args=[dateOfInterest, ofName, imageType, verbose], daemon=True
+        target=getArgusImagery,
+        kwargs={
+            "dateOfInterest": dateOfInterest,
+            "ofName": ofName,
+            "imageType": imageType,
+            "imageFormat": imageFormat,
+            "verbose": verbose,
+        },
+        daemon=True,
     )
+
     t.start()
+
     return ofName
 
 
-def transectSelection(data, **kwargs):
-    """
+def is_local_to_FRF(coords):
+    """Function to define if data are within the FRF surf size"""
+    return ((coords["yFRF"] < 2500) & (coords["yFRF"] > -2500) & (coords["xFRF"] > 0)).all()
+
+
+def transect_selection_tool(data, **kwargs):
+    """Function takes data and allws user to QA/QC/ assign profile lines
+
     Args:
         data: dataframe containing crawler transect data, to be modified with isTransect and profileNumber columns
 
     Keyword Args:
-        'outputDir': this is the output directory for the file name save
+        'outputDir': this is the output directory for the file name save (default=current directory))
+        'savePlots': turns save plot of the final product on/off (Default = True)
+        'currrent_progress_plots':  shows a plot after each line selected (Default=False)
+
     Returns:
         data: input dataframe with columns isTransect and profileNumber added, isTransect is a boolean denoting
         whether a point is part of a transect, profileNumber is a float to designate the transect a point is a part of
@@ -847,8 +1263,9 @@ def transectSelection(data, **kwargs):
     """
     outputDir = kwargs.get("outputDir", os.getcwd())
     plotting = kwargs.get("savePlots", True)
+    current_progress = kwargs.get("current_progress_plots", False)  # show a plot after selection of a line
     # For date string in saved plot file name, convert UNIX timestamp → datetime → YYYYMMDD string
-    ts = DT.datetime.fromtimestamp(float(data['date'][0]), tz=DT.timezone.utc)
+    ts = DT.datetime.fromtimestamp(float(data["date"][0]), tz=DT.timezone.utc)
     ts_yyyymmdd = ts.strftime("%Y%m%d")  # e.g., 20240716
     # added columns for isTransect boolean and profileNumber float to data dataframe
     data["isTransect"] = [False] * data.shape[0]
@@ -860,8 +1277,10 @@ def transectSelection(data, **kwargs):
     prevData = data.copy(deep=True)
     # main loop for identifying transects, continues to allow for selections while user inputs y/Y
     transectIdentify = input("Do you want to select a transect? (Y/N):")
+
     while transectIdentify.lower() == "y" or transectIdentify.lower() == "u":
         if transectIdentify.lower() == "y":
+
             pointsValid = True
             print(
                 "To identify a transect, please place a single point at the start and end of the transect with left click"
@@ -869,9 +1288,7 @@ def transectSelection(data, **kwargs):
             print(
                 "Right click to erase the most recently selected point. Middle click (press the scroll wheel) to save."
             )
-            print(
-                "Points have saved when they no longer appear on the graph, close the graph window to proceed."
-            )
+            print("Points have saved when they no longer appear on the graph, close the graph window to proceed.")
             print("Remember to remove points used in zooming and panning with right click.")
             print("If more or less than 2 points are selected, no changes will be made")
             print(
@@ -879,64 +1296,110 @@ def transectSelection(data, **kwargs):
             )
             print("Select the transect using only 1 graph at a time")
             # displays plots of two subplots, one with x vs y colored in time and one with time vs y colored in x
-            fig = plt.figure()
+            fig = plt.figure(figsize=(18, 8))
             fig.suptitle("Transects xFRF (top) and time (bottom) vs yFRF ")
             shape = (4, 6)
 
             ax0 = plt.subplot2grid(shape, (0, 0), colspan=2, rowspan=5)
-            ax0.scatter(dispData["xFRF"], dispData["yFRF"], c=dispData["time"], cmap="hsv", s=1)
+            # ax0.plot(data['xFRF'], data['yFRF'], 'k.', ms=0.5, zorder=1)
+            # ax0.plot(currTransect["xFRF"], currTransect["yFRF"], 'k.', ms=0.5, zorder=1)
+            ax0.scatter(
+                dispData["xFRF"],
+                dispData["yFRF"],
+                c=dispData["time"],
+                cmap="hsv",
+                s=1,
+                zorder=10,
+            )
             ax0.set(xlabel="xFRF [m]", ylabel="yFRF [m]")
 
             ax1 = plt.subplot2grid(shape, (0, 2), colspan=6, rowspan=2)
+            # ax1.plot(data['UNIX_timestamp'], data['xFRF'], 'k.', ms=0.5, zorder=1)
             ax1.scatter(
-                dispData["UNIX_timestamp"], dispData["xFRF"], c=dispData["yFRF"], cmap="hsv", s=1
+                dispData["UNIX_timestamp"],
+                dispData["xFRF"],
+                c=dispData["yFRF"],
+                cmap="hsv",
+                s=1,
+                zorder=10,
             )
             ax1.set(xlabel="UNIX Timestamp (seconds)", ylabel="xFRF (m)")
+
             ax2 = plt.subplot2grid(shape, (2, 2), colspan=6, rowspan=2, sharex=ax1)
+            ax2.set_title("Do not pick from this plot w/o adjusting code")
             ax2.scatter(
-                dispData["UNIX_timestamp"], dispData["yFRF"], c=dispData["yFRF"], cmap="hsv", s=1
+                dispData["UNIX_timestamp"],
+                dispData["yFRF"],
+                c=dispData["yFRF"],
+                cmap="hsv",
+                s=1,
+            )
+            ax2.text(
+                dispData["UNIX_timestamp"].mean(),
+                dispData["yFRF"].mean(),
+                "don't use this plot",
+                ha="center",
+                va="center",
+                fontsize=20,
             )
             ax2.set(xlabel="UNIX Timestamp (seconds)", ylabel="yFRF (m)")
             plt.tight_layout()
-            nodes = plt.ginput(-1, 0)
-            print("Selected Points: ")
-            print(nodes)
+            selected_points = plt.ginput(-1, 0)
+            print(f"Selected Points: {selected_points}")
             plt.close()
             # ginput returns list of tuples of selected coordinates, each is in its graph's proper scale
-            if len(nodes) == 2:
+            if len(selected_points) == 2:
                 prevDisp = dispData.copy(deep=True)
                 prevData = data.copy(deep=True)
-                # false means ycoord is yFRF, true means UNIX Timestamp
-                isTime = [False, False]
-                isTime[0] = nodes[0][0] > 1500
-                isTime[1] = nodes[1][0] > 1500
-                if isTime[0] == isTime[1]:
-                    endpts = []
+                # false means ycoord from the plot is yFRF, true means UNIX Timestamp
+                is_first_point_time = [False, False]
+                is_first_point_time[0] = selected_points[0][0] > 15000  # we expect FRF coord values to be < 1500
+                is_first_point_time[1] = selected_points[1][0] > 15000  # we expect FRF coord values to be < 1500
+                if is_first_point_time[0] == is_first_point_time[1]:
+                    endpts_xFRF_yFRF = []
                     # each node is matched to the closest point in the dispData dataframe
-                    for x in range(len(nodes)):
-                        curr = nodes[x]
-                        prevDist = float("inf")
-                        closest = tuple()
-                        for y in range(dispData.shape[0]):
-                            if isTime[x]:
-                                dist = np.sqrt(
-                                    (dispData["UNIX_timestamp"][y] - curr[0]) ** 2
-                                    + (dispData["yFRF"][y] - curr[1]) ** 2
-                                )
-                            else:
-                                dist = np.sqrt(
-                                    (dispData["yFRF"][y] - curr[1]) ** 2
-                                    + (dispData["xFRF"][y] - curr[0]) ** 2
-                                )
-                            if dist < prevDist:
-                                prevDist = dist
-                                closest = (dispData["xFRF"][y], dispData["yFRF"][y])
-                        endpts.append(closest)
 
+                    for x in range(len(selected_points)):
+                        current_point_tuple = selected_points[x]
+                        if is_first_point_time[x]:
+                            arg_key = "UNIX_timestamp"
+                            dist_list = np.sqrt(
+                                (dispData[arg_key] - current_point_tuple[0]) ** 2
+                                + (dispData["xFRF"] - current_point_tuple[1]) ** 2
+                            )
+                        else:
+                            arg_key = "xFRF"
+                            dist_list = np.sqrt(
+                                (dispData[arg_key] - current_point_tuple[0]) ** 2
+                                + (dispData["yFRF"] - current_point_tuple[1]) ** 2
+                            )
+
+                        idx_min_dist = dist_list.argmin()
+                        endpts_xFRF_yFRF.append(
+                            (
+                                dispData["xFRF"][idx_min_dist],
+                                dispData["yFRF"][idx_min_dist],
+                            )
+                        )
+
+                        logging.debug(f"1st term (x) {(dispData[arg_key] - current_point_tuple[0]).min():.2f}")
+                        logging.debug(f"2nd term (y) {(dispData['yFRF'] - current_point_tuple[1]).min():.2f}")
+                        logging.debug(
+                            f"sqrt = {np.sqrt((dispData[arg_key] - current_point_tuple[0]).min()**2 + (dispData['yFRF'] - current_point_tuple[1]).min())}"
+                        )
+                        logging.debug(
+                            f"identified point in plot {current_point_tuple}\n                    "
+                            f"data identified {dispData['UNIX_timestamp'][idx_min_dist], endpts_xFRF_yFRF[-1]}"
+                            f"\n                  at distance {dist_list.min():.2f}"
+                        )
+                        logging.debug(f"selected from: {arg_key}")
                     # identify endpoints within dispdata frame
                     isEndPt = []
                     for x in range(dispData.shape[0]):
-                        if (dispData["xFRF"][x], dispData["yFRF"][x]) in endpts:
+                        if (
+                            dispData["xFRF"][x],
+                            dispData["yFRF"][x],
+                        ) in endpts_xFRF_yFRF:
                             isEndPt.append(True)
                         else:
                             isEndPt.append(False)
@@ -977,56 +1440,59 @@ def transectSelection(data, **kwargs):
                     transectID = meanY
                     if transectIDstr != "":  # if the response is not enter
                         transectID = float(transectIDstr)
-                    currTransect["profileNumber"] = currTransect["profileNumber"].replace(
-                        [float("nan")], transectID
-                    )
+                    currTransect["profileNumber"] = currTransect["profileNumber"].replace([float("nan")], transectID)
 
                     print("Updating dataframe...")
                     # update primary dataframe
                     # search once to find first timestamp, iterate afterwards
                     startTime = currTransect["UNIX_timestamp"].iloc[0]
-                    endTime = currTransect["UNIX_timestamp"].iloc[currTransect.shape[0] - 1]
-                    firstI = 0
-                    for y in range(data.shape[0]):
-                        if data["UNIX_timestamp"].iloc[y] == startTime:
-                            firstI = y
-                            break
-
-                    for x in range(currTransect.shape[0]):
-                        data.loc[x + firstI, "profileNumber"] = transectID
-                        data.loc[x + firstI, "isTransect"] = True
+                    # endTime = currTransect["UNIX_timestamp"].iloc[currTransect.shape[0] - 1]
+                    # firstI = 0
+                    firstI = np.argmin(np.abs(data["UNIX_timestamp"] - startTime))
+                    # now assign transect ID & isTransect variables
+                    data.loc[firstI : firstI + len(currTransect), "profileNumber"] = transectID
+                    data.loc[firstI : firstI + len(currTransect), "isTransect"] = True
+                    # # for y in range(data.shape[0]):
+                    # #     if data["UNIX_timestamp"].iloc[y] == startTime:
+                    # #         firstI = y
+                    # #         break
+                    #
+                    # for x in range(currTransect.shape[0]):
+                    #     data.loc[x + firstI, "profileNumber"] = transectID
+                    #     data.loc[x + firstI, "isTransect"] = True
                 else:
                     # ignore selected points if from different plots
-                    print("Selected points from different plots. Discarding selected points.")
+                    logging.warning("Selected points from different plots. Discarding selected points.")
                     pointsValid = False
             else:
                 # ignore selected points if more or less than 2 selected
-                print("Selected more or less than 2 points. Discarding selected points.")
+                logging.warning("Selected more or less than 2 points. Discarding selected points.")
                 pointsValid = False
 
             # display selected transects overlayed over all points, colored by profile number
-            print("Displaying current progress. Close the window to continue.")
-            transectsOnly = data.loc[data["isTransect"] == True]
-            plt.figure()
-            plt.scatter(data["xFRF"], data["yFRF"], c="black", s=1)
-            a = plt.scatter(
-                transectsOnly["xFRF"],
-                transectsOnly["yFRF"],
-                c=transectsOnly["profileNumber"].to_list(),
-                cmap="hsv",
-                s=1,
-            )
-            if pointsValid:
-                plt.scatter(currTransect["xFRF"], currTransect["yFRF"], c="pink", marker="x")
-            cbar = plt.colorbar(a)
-            plt.xlabel("FRF Coordinate System X (m)")
-            plt.ylabel("FRF Coordinate System Y (m)")
-            cbar.set_label("Transect Number")
-            plt.title("Current Progress")
-            plt.show()
-            transectIdentify = input(
-                "Do you want to select another transect? yes-y, No-N, undo-u :"
-            )
+            if current_progress == True:
+                logging.info("Displaying current progress. Close the window to continue.")
+                transectsOnly = data.loc[data["isTransect"] == True]
+                plt.figure()
+                plt.scatter(data["xFRF"], data["yFRF"], c="black", s=1)
+                a = plt.scatter(
+                    transectsOnly["xFRF"],
+                    transectsOnly["yFRF"],
+                    c=transectsOnly["profileNumber"].to_list(),
+                    cmap="hsv",
+                    s=1,
+                )
+                cbar = plt.colorbar(a)
+                if pointsValid:
+                    a = plt.scatter(currTransect["xFRF"], currTransect["yFRF"], c="pink", marker="x")
+
+                plt.xlabel("FRF Coordinate System X (m)")
+                plt.ylabel("FRF Coordinate System Y (m)")
+                cbar = plt.colorbar(a)
+                cbar.set_label("Transect Number")
+                plt.title("Current Progress")
+                plt.show()
+            transectIdentify = input("Do you want to select another transect? yes-y, No-N, undo-u :")
 
         elif transectIdentify.lower() == "u":
             # undo case
@@ -1052,7 +1518,7 @@ def transectSelection(data, **kwargs):
             transectIdentify = input("Do you want to select another transect? (Y/N):")
         else:
             raise NotImplementedError("required inputs are (y)es/(n)o/(u)ndo")
-    # prompts for saving charts, excel and pickle
+    # prompts for saving plots pickle
 
     if plotting is True:
         transectsOnly = data.loc[data["isTransect"] == True]
@@ -1078,7 +1544,6 @@ def transectSelection(data, **kwargs):
         )
         plt.close()
 
-        print("Close the window to continue.")
         plt.figure(figsize=(8, 16))
         plt.scatter(data["xFRF"], data["yFRF"], c="black", s=1)
         plt.scatter(
@@ -1092,9 +1557,7 @@ def transectSelection(data, **kwargs):
         plt.xlabel("xFRF (m)")
         plt.ylabel("yFRF (m)")
         cbar.set_label("Profile Number")
-        plt.title(
-            f"Identified Transects vs All Points\n{ts_yyyymmdd}"
-        )
+        plt.title(f"Identified Transects vs All Points\n{ts_yyyymmdd}")
         plt.savefig(
             os.path.join(
                 outputDir,
@@ -1106,33 +1569,77 @@ def transectSelection(data, **kwargs):
     return data
 
 
-def plot_planview_FRF(ofname, coords, gnss_out, antenna_offset, elevation_out, sonar_instant_depth_out, sonar_smooth_depth_out, idxDataToSave):
+def plot_planview_FRF_with_profile(ofname, coords, instant_depths, smoothed_depths, processed_depths):
 
-        minloc = 800
-        maxloc = 1000
-        logic = (coords['yFRF'] > minloc) & (coords['yFRF'] < maxloc)
+    minloc = 800
+    maxloc = 1000
+    logic = (coords["yFRF"] > minloc) & (coords["yFRF"] < maxloc)
+
+    plt.figure(figsize=(12, 8))
+    plt.subplot(211)
+    plt.title("plan view of survey")
+    plt.scatter(coords["xFRF"], coords["yFRF"], c=processed_depths, vmax=-1)
+    cbar = plt.colorbar()
+    cbar.set_label("depth")
+    plt.subplot(212)
+    plt.title(f"profile at line y={np.median(coords['yFRF'][logic]).astype(int)}")
+    plt.plot(coords["xFRF"][logic], instant_depths[logic], ".", label="instant depths")
+    plt.plot(coords["xFRF"][logic], smoothed_depths[logic], ".", label="smooth Depth")
+    plt.plot(coords["xFRF"][logic], processed_depths[logic], ".", label="chosen depths")
+    plt.legend()
+    plt.xlabel("xFRF")
+    plt.ylabel("elevation NAVD88[m]")
+    plt.tight_layout()
+    plt.savefig(ofname)
 
 
-        plt.figure(figsize=(12, 8))
-        plt.subplot(211)
-        plt.title('plan view of survey')
-        plt.scatter(coords['xFRF'], coords['yFRF'], c=elevation_out[idxDataToSave], vmax=-1)
-        cbar = plt.colorbar()
-        cbar.set_label('depth')
-        plt.subplot(212)
-        plt.title(f"profile at line y={np.median(coords['yFRF'][logic]).astype(int)}")
-        plt.plot(coords['xFRF'][logic],
-                 gnss_out[idxDataToSave][logic] - antenna_offset - sonar_instant_depth_out[idxDataToSave][logic], '.',
-                 label='instant depths')
-        plt.plot(coords['xFRF'][logic],
-                 gnss_out[idxDataToSave][logic] - antenna_offset - sonar_smooth_depth_out[idxDataToSave][logic], '.',
-                 label='smooth Depth')
-        plt.plot(coords['xFRF'][logic], elevation_out[idxDataToSave][logic], '.', label='chosen depths')
-        plt.legend()
-        plt.xlabel('xFRF')
-        plt.ylabel('elevation NAVD88[m]')
-        plt.tight_layout()
-        plt.savefig(ofname)
+def plot_planview_FRF(
+    ofname,
+    coords,
+    gnss_out,
+    antenna_offset,
+    elevation_out,
+    sonar_instant_depth_out,
+    sonar_smooth_depth_out,
+    idxDataToSave,
+):
+
+    minloc = 800
+    maxloc = 1000
+    logic = (coords["yFRF"] > minloc) & (coords["yFRF"] < maxloc)
+
+    plt.figure(figsize=(12, 8))
+    plt.subplot(211)
+    plt.title("plan view of survey")
+    plt.scatter(coords["xFRF"], coords["yFRF"], c=elevation_out[idxDataToSave], vmax=-1)
+    cbar = plt.colorbar()
+    cbar.set_label("depth")
+    plt.subplot(212)
+    plt.title(f"profile at line y={np.median(coords['yFRF'][logic]).astype(int)}")
+    plt.plot(
+        coords["xFRF"][logic],
+        gnss_out[idxDataToSave][logic] - antenna_offset - sonar_instant_depth_out[idxDataToSave][logic],
+        ".",
+        label="instant depths",
+    )
+    plt.plot(
+        coords["xFRF"][logic],
+        gnss_out[idxDataToSave][logic] - antenna_offset - sonar_smooth_depth_out[idxDataToSave][logic],
+        ".",
+        label="smooth Depth",
+    )
+    plt.plot(
+        coords["xFRF"][logic],
+        elevation_out[idxDataToSave][logic],
+        ".",
+        label="chosen depths",
+    )
+    plt.legend()
+    plt.xlabel("xFRF")
+    plt.ylabel("elevation NAVD88[m]")
+    plt.tight_layout()
+    plt.savefig(ofname)
+
 
 def add_basemap_imagery(ax, attribution_size=6):
     """Add basemap imagery to a matplotlib axis using open data sources.
@@ -1153,7 +1660,11 @@ def add_basemap_imagery(ax, attribution_size=6):
     """
     try:
         # Use USGS aerial imagery as primary open data source
-        ctx.add_basemap(ax, source=ctx.providers.USGS.USImageryTopo, attribution_size=attribution_size)
+        ctx.add_basemap(
+            ax,
+            source=ctx.providers.USGS.USImageryTopo,
+            attribution_size=attribution_size,
+        )
         return True
     except Exception as e:
         # Primary source failed - could be offline, network issue, or service unavailable
@@ -1162,7 +1673,11 @@ def add_basemap_imagery(ax, attribution_size=6):
 
         # If USGS fails, try OpenStreetMap as fallback
         try:
-            ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, attribution_size=attribution_size)
+            ctx.add_basemap(
+                ax,
+                source=ctx.providers.OpenStreetMap.Mapnik,
+                attribution_size=attribution_size,
+            )
             print("Successfully added OpenStreetMap basemap as fallback")
             return True
         except Exception as e2:
@@ -1173,190 +1688,267 @@ def add_basemap_imagery(ax, attribution_size=6):
             # Continue without basemap if both fail - this is expected behavior offline
             return False
 
-def plot_planview_lonlat(ofname, T_ppk, bad_lon_out, bad_lat_out, elevation_out, lat_out, lon_out, timeString, idxDataToSave, FRF, margin=0.1):
-        """Create plan view plot of bathymetric data over satellite basemap imagery.
 
-        IMPORTANT: This function is for VISUALIZATION ONLY. Input coordinate arrays are NOT modified.
-        Data product files retain original EPSG:4326 (lat/lon) coordinates. Web Mercator transformation
-        is only used internally for rendering basemap imagery.
+def plot_planview_lonlat(
+    ofname,
+    T_ppk,
+    bad_lon_out,
+    bad_lat_out,
+    elevation_out,
+    lat_out,
+    lon_out,
+    timeString,
+    idxDataToSave,
+    FRF,
+    margin=0.1,
+):
+    """Create plan view plot of bathymetric data over satellite basemap imagery.
 
-        Args:
-            ofname: output filename for saved plot (PNG)
-            T_ppk: PPK trajectory dataframe with 'lon', 'lat' columns
-            bad_lon_out: longitude array of bad sonar data points
-            bad_lat_out: latitude array of bad sonar data points
-            elevation_out: NAVD88 elevation array
-            lat_out: latitude array of survey data (EPSG:4326)
-            lon_out: longitude array of survey data (EPSG:4326)
-            timeString: date string for plot title (YYYYMMDD format)
-            idxDataToSave: boolean/integer index array for valid data points
-            FRF: boolean flag indicating if survey is local to FRF
-            margin: colorbar margin as fraction of elevation range (default=0.1)
+    IMPORTANT: This function is for VISUALIZATION ONLY. Input coordinate arrays are NOT modified.
+    Data product files retain original EPSG:4326 (lat/lon) coordinates. Web Mercator transformation
+    is only used internally for rendering basemap imagery.
 
-        Returns:
-            None (saves plot to ofname)
-        """
-        fs = 16
-        # make a final plot of all the processed data
-        # FRF pier coordinates (commented out - redundant with satellite imagery showing pier)
-        # pierStart = geoprocess.FRFcoord(0, 515, coordType='FRF')
-        # pierEnd = geoprocess.FRFcoord(534, 515, coordType='FRF')
+    Args:
+        ofname: output filename for saved plot (PNG)
+        T_ppk: PPK trajectory dataframe with 'lon', 'lat' columns
+        bad_lon_out: longitude array of bad sonar data points
+        bad_lat_out: latitude array of bad sonar data points
+        elevation_out: NAVD88 elevation array
+        lat_out: latitude array of survey data (EPSG:4326)
+        lon_out: longitude array of survey data (EPSG:4326)
+        timeString: date string for plot title (YYYYMMDD format)
+        idxDataToSave: boolean/integer index array for valid data points
+        FRF: boolean flag indicating if survey is local to FRF
+        margin: colorbar margin as fraction of elevation range (default=0.1)
 
-        # IMPORTANT: Transform coordinates for VISUALIZATION ONLY
-        # This transformation does NOT affect the data product - original lat/lon/elevation
-        # data remains in EPSG:4326 and is saved to the output file unchanged.
-        # Web Mercator (EPSG:3857) is required only for proper basemap rendering.
+    Returns:
+        None (saves plot to ofname)
+    """
+    fs = 16
+    # make a final plot of all the processed data
+    # FRF pier coordinates (commented out - redundant with satellite imagery showing pier)
+    # pierStart = geoprocess.FRFcoord(0, 515, coordType='FRF')
+    # pierEnd = geoprocess.FRFcoord(534, 515, coordType='FRF')
 
-        # Create transformer for converting lat/lon (EPSG:4326) to Web Mercator (EPSG:3857)
-        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+    # IMPORTANT: Transform coordinates for VISUALIZATION ONLY
+    # This transformation does NOT affect the data product - original lat/lon/elevation
+    # data remains in EPSG:4326 and is saved to the output file unchanged.
+    # Web Mercator (EPSG:3857) is required only for proper basemap rendering.
 
-        # Transform coordinates to Web Mercator for visualization (creates new variables, doesn't modify inputs)
-        x_out, y_out = transformer.transform(lon_out, lat_out)
-        x_ppk, y_ppk = transformer.transform(T_ppk['lon'], T_ppk['lat'])
-        x_bad, y_bad = transformer.transform(bad_lon_out, bad_lat_out)
-        # Pier transformation (commented out - redundant with satellite imagery)
-        # x_pier = [pierStart['Lon'], pierEnd['Lon']]
-        # y_pier = [pierStart['Lat'], pierEnd['Lat']]
-        # x_pier_transformed, y_pier_transformed = transformer.transform(x_pier, y_pier)
+    # Create transformer for converting lat/lon (EPSG:4326) to Web Mercator (EPSG:3857)
+    transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
 
-        fig, ax = plt.subplots(figsize=(12, 8))
-        min_elev = np.min(elevation_out[idxDataToSave])
-        max_elev = np.max(elevation_out[idxDataToSave])
-        diff_elev = max_elev - min_elev
-        buffer = margin*diff_elev
-        if abs(max_elev) < 1:
-            # indicates a sea level survey, ceiling color map at 0.5m below 0m NAVD88 elevation
-            # we assume max_elev will not be significantly greater than 1m elevation
-            if max_elev > 0:
-                vmax = max_elev*1.1
-            else:
-                vmax = 0
+    # Transform coordinates to Web Mercator for visualization (creates new variables, doesn't modify inputs)
+    x_out, y_out = transformer.transform(lon_out, lat_out)
+    x_ppk, y_ppk = transformer.transform(T_ppk["lon"], T_ppk["lat"])
+    x_bad, y_bad = transformer.transform(bad_lon_out, bad_lat_out)
+    # Pier transformation (commented out - redundant with satellite imagery)
+    # x_pier = [pierStart['Lon'], pierEnd['Lon']]
+    # y_pier = [pierStart['Lat'], pierEnd['Lat']]
+    # x_pier_transformed, y_pier_transformed = transformer.transform(x_pier, y_pier)
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+    min_elev = np.min(elevation_out[idxDataToSave])
+    max_elev = np.max(elevation_out[idxDataToSave])
+    diff_elev = max_elev - min_elev
+    buffer = margin * diff_elev
+    if abs(max_elev) < 1:
+        # indicates a sea level survey, ceiling color map at 0.5m below 0m NAVD88 elevation
+        # we assume max_elev will not be significantly greater than 1m elevation
+        if max_elev > 0:
+            vmax = max_elev * 1.1
         else:
-            # survey taken at an elevated location, add a margin of survey range (default 10%) to colorbar for readability
-            vmax = max_elev+buffer
-        vmin = min_elev-buffer
+            vmax = 0
+    else:
+        # survey taken at an elevated location, add a margin of survey range (default 10%) to colorbar for readability
+        vmax = max_elev + buffer
+    vmin = min_elev - buffer
 
-        scatter = ax.scatter(x_out[idxDataToSave], y_out[idxDataToSave], c=elevation_out[idxDataToSave],
-                    vmax=vmax, vmin=vmin, label='processed depths', zorder=3)
-        cbar = plt.colorbar(scatter, ax=ax)
-        cbar.set_label('NAVD88 Elevation [m]', fontsize=fs)
-        ax.plot(x_ppk, y_ppk, 'k.', ms=0.25, label='vehicle trajectory', zorder=2)
-        ax.plot(x_bad, y_bad, 'rx', ms=3, label='bad sonar data, good GPS', zorder=4)
-        # FRF pier plotting (commented out - redundant with satellite imagery showing pier)
-        # if FRF == True:
-        #     ax.plot(x_pier_transformed, y_pier_transformed, 'k-', lw=5, label='FRF pier', zorder=4)
+    scatter = ax.scatter(
+        x_out[idxDataToSave],
+        y_out[idxDataToSave],
+        c=elevation_out[idxDataToSave],
+        vmax=vmax,
+        vmin=vmin,
+        label="processed depths",
+        zorder=3,
+    )
+    cbar = plt.colorbar(scatter, ax=ax)
+    cbar.set_label("NAVD88 Elevation [m]", fontsize=fs)
+    ax.plot(x_ppk, y_ppk, "k.", ms=0.25, label="vehicle trajectory", zorder=2)
+    ax.plot(x_bad, y_bad, "rx", ms=3, label="bad sonar data, good GPS", zorder=4)
+    # FRF pier plotting (commented out - redundant with satellite imagery showing pier)
+    # if FRF == True:
+    #     ax.plot(x_pier_transformed, y_pier_transformed, 'k-', lw=5, label='FRF pier', zorder=4)
 
-        # Add basemap imagery using helper function
-        add_basemap_imagery(ax, attribution_size=6)
+    # Add basemap imagery using helper function
+    add_basemap_imagery(ax, attribution_size=6)
 
-        ax.set_ylabel('latitude', fontsize=fs)
-        ax.set_xlabel('longitude', fontsize=fs)
-        ax.set_title(f'final data with elevations {timeString}', fontsize=fs + 4)
-        plt.tight_layout()
-        ax.legend()
-        ax.ticklabel_format(useOffset=False, style='plain')
-        plt.savefig(ofname)
-        plt.close()
-
-def qaqc_post_sonar_time_shift(ofname, T_ppk, indsPPK, commonTime, ppkHeight_i, sonar_range_i, phaseLaginTime,
-                               sonarData, sonarIndicies, sonar_range):
-    # TODO pull this figure out to a function
-    plt.figure(figsize=(16, 8))
-    ax1 = plt.subplot(311)
-    plt.plot(T_ppk['epochTime'][indsPPK], T_ppk['GNSS_elevation_NAVD88'][indsPPK], label='ppk elevation NAVD88 m')
-    plt.plot(sonarData['time'][sonarIndicies], sonar_range[sonarIndicies], label='sonar_raw')
-    plt.legend()
-
-    plt.subplot(312, sharex=ax1)
-    plt.title(f"sonar data needs to be adjusted by {phaseLaginTime} seconds")
-    plt.plot(commonTime, signal.detrend(ppkHeight_i), label='ppk input')
-    plt.plot(commonTime, signal.detrend(sonar_range_i), label='sonar input')
-    plt.plot(commonTime + phaseLaginTime, signal.detrend(sonar_range_i), '.', label='interp _sonar shifted')
-    plt.legend()
-
-    plt.subplot(313, sharex=ax1)
-    plt.title('shifted residual between sonar and GNSS (should be 0)')
-    plt.plot(commonTime + phaseLaginTime, signal.detrend(sonar_range_i) - signal.detrend(ppkHeight_i), '.',
-             label='residual')
-    plt.ylim([-1, 1])
+    ax.set_ylabel("latitude", fontsize=fs)
+    ax.set_xlabel("longitude", fontsize=fs)
+    ax.set_title(f"final data with elevations {timeString}", fontsize=fs + 4)
     plt.tight_layout()
-    plt.show()
+    ax.legend()
+    ax.ticklabel_format(useOffset=False, style="plain")
     plt.savefig(ofname)
-
-def is_local_to_FRF(coords):
-    return ((coords['yFRF'] < 2000) & (coords['yFRF'] > -20000)).all()
-
-def qaqc_time_offset_determination(ofname, pc_time_off):
-    # Compare GPS data to make sure timing is ok
-    plt.figure()
-    plt.suptitle('time offset between pc time and GPS time')
-    ax1 = plt.subplot(121)
-    ax1.plot(pc_time_off, '.')
-    ax1.set_xlabel('PC time')
-    ax1.set_ylabel('PC time - GGA string time (+leap seconds)')
-    ax2 = plt.subplot(122)
-    ax2.hist(pc_time_off, bins=50)
-    ax2.set_xlabel('diff time')
-    plt.tight_layout()
-    plt.savefig(ofname)
-    print(f'the PC time (sonar time stamp) is {np.median(pc_time_off):.2f} seconds behind the GNSS timestamp')
     plt.close()
 
-def sonar_pick_cross_correlation_time(ofname, sonar_range):
+
+def plot_qaqc_post_sonar_time_shift(
+    ofname,
+    T_ppk,
+    indsPPK,
+    commonTime,
+    ppkHeight_i,
+    sonar_range_i,
+    phaseLaginTime,
+    sonarData,
+    sonarIndicies,
+    sonar_range,
+):
+    # TODO pull this figure out to a function
+    fig = plt.figure(figsize=(16, 8))
+
+    ax1 = plt.subplot(311)
+    ax1.plot(
+        T_ppk["epochTime"][indsPPK],
+        T_ppk["GNSS_elevation_NAVD88"][indsPPK],
+        label="ppk elevation NAVD88 m",
+    )
+    ax1.plot(sonarData["time"][sonarIndicies], sonar_range[sonarIndicies], label="sonar_raw")
+    ax1.legend()
+
+    ax2 = plt.subplot(312, sharex=ax1)
+    ax2.set_title(f"sonar data needs to be adjusted by {phaseLaginTime} seconds")
+    ax2.plot(commonTime, signal.detrend(ppkHeight_i), label="ppk input")
+    ax2.plot(commonTime, signal.detrend(sonar_range_i), label="sonar input")
+    ax2.plot(
+        commonTime + phaseLaginTime,
+        signal.detrend(sonar_range_i),
+        ".",
+        label="interp _sonar shifted",
+    )
+    ax2.legend()
+
+    ax3 = plt.subplot(313, sharex=ax1)
+    ax3.set_title("shifted residual between sonar and GNSS (should be 0)")
+    ax3.plot(
+        commonTime + phaseLaginTime,
+        signal.detrend(sonar_range_i) - signal.detrend(ppkHeight_i),
+        ".",
+        label="residual",
+    )
+    ax3.set_ylim([-1, 1])
+    ax3.legend()
+
+    plt.tight_layout()
+    plt.show()
+    plt.savefig(ofname, dpi=100, bbox_inches="tight")
+
+
+def plot_qaqc_time_offset_determination(ofname, pc_time_off):
+    # Compare GPS data to make sure timing is ok
+    plt.figure()
+    plt.suptitle("time offset between pc time and GPS time")
+    ax1 = plt.subplot(121)
+    ax1.plot(pc_time_off, ".")
+    ax1.set_xlabel("PC time")
+    ax1.set_ylabel("PC time - GGA string time (+leap seconds)")
+    ax2 = plt.subplot(122)
+    ax2.hist(pc_time_off, bins=50)
+    ax2.set_xlabel("diff time")
+    plt.tight_layout()
+    plt.savefig(ofname)
+    print(f"the PC time (sonar time stamp) is {np.median(pc_time_off):.2f} seconds behind the GNSS timestamp")
+    plt.close()
+
+
+def plot_sonar_pick_cross_correlation_time(ofname, sonar_range):
     plt.figure(figsize=(10, 4))
     plt.subplot(211)
-    plt.title('all data: select start/end point for measured depths to do time-syncing over ')
+    plt.title("all data: select start/end point for measured depths to do time-syncing over ")
     plt.plot(sonar_range)
-    plt.ylim([0, 10])
     d = plt.ginput(2, timeout=-999)
     plt.subplot(212)
     # Now pull corresponding indices for sonar data for same time
     assert len(d) == 2, "need 2 points from mouse clicks"
     sonarIndicies = np.arange(np.floor(d[0][0]).astype(int), np.ceil(d[1][0]).astype(int))
     plt.plot(sonar_range[sonarIndicies])
-    plt.title('my selected data to proceed with cross-correlation/time syncing')
+    plt.title("my selected data to proceed with cross-correlation/time syncing")
     plt.tight_layout()
     plt.savefig(ofname)
     return sonarIndicies
 
-def qaqc_plot_all_data_in_time(ofname, sonarData, sonar_range, payloadGpsData, T_ppk):
+
+def plot_qaqc_all_data_in_time(ofname, sonarData, sonar_range, payloadGpsData, T_ppk):
+
     # 6.6 Now lets take a look at all of our data from the different sources
     plt.figure(figsize=(10, 4))
-    plt.suptitle('all data sources elevation', fontsize=20)
-    plt.title('These data need to overlap in time for processing to work')
-    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData['time']], sonar_range, 'b.', label='sonar depth')
-    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in payloadGpsData['gps_time']], payloadGpsData['altMSL'], '.g',
-             label='L1 (only) GPS elev (MSL)')
-    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in T_ppk['epochTime']], T_ppk['GNSS_elevation_NAVD88'], '.r',
-             label='ppk elevation [NAVD88 m]')
-    # Calculate y-axis limits from all data sources with padding
-    all_elevations = np.concatenate([
+    plt.suptitle("all data sources elevation", fontsize=20)
+    plt.title("These data need to overlap in time for processing to work")
+    plt.plot(
+        [DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData["time"]],
         sonar_range,
-        payloadGpsData['altMSL'],
-        T_ppk['GNSS_elevation_NAVD88']
-    ])
+        "b.",
+        label="sonar depth",
+    )
+    plt.plot(
+        [DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in payloadGpsData["gps_time"]],
+        payloadGpsData["altMSL"],
+        ".g",
+        label="L1 (only) GPS elev (MSL)",
+    )
+    plt.plot(
+        [DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in T_ppk["epochTime"]],
+        T_ppk["GNSS_elevation_NAVD88"],
+        ".r",
+        label="ppk elevation [NAVD88 m]",
+    )
+    # Calculate y-axis limits from all data sources with padding
+    all_elevations = np.concatenate([sonar_range, payloadGpsData["altMSL"], T_ppk["GNSS_elevation_NAVD88"]])
     ymin, ymax = np.nanmin(all_elevations), np.nanmax(all_elevations)
     padding = (ymax - ymin) * 0.1 if ymax > ymin else 1.0
     plt.ylim([ymin - padding, ymax + padding])
-    plt.ylabel('elevation [m]')
-    plt.xlabel('epoch time (s)')
+    plt.ylabel("elevation [m]")
+    plt.xlabel("epoch time (s)")
     plt.legend()
-    # plt.show()
     plt.savefig(ofname)
+    plt.close()
 
-def qaqc_sonar_profiles(ofname, sonarData):
+
+def plot_qaqc_sonar_profiles(ofname, sonarData):
+    # unpack dictionary
+    sonar_epoch_time = sonarData["time"]
+    sonar_time = [DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonar_epoch_time]
+    sonar_depth_line_primary = sonarData["this_ping_depth_m"]
+    sonar_depth_line_primary_descriptor = "this ping Depth"
+    sonar_depth_line_secondary = sonarData["smooth_depth_m"]
+    sonar_depth_line_secondary_descriptor = "smooth Depth"
+    sonar_backscatter = sonarData["profile_data"]
+    sonar_backscatter_range_m = sonarData["range_m"]
+    y_lim_max = 10 if sonar_backscatter_range_m.max() > 10 else sonar_backscatter_range_m.max()
 
     plt.figure(figsize=(18, 6))
-    cm = plt.pcolormesh([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData['time']], sonarData['range_m'],
-                        sonarData['profile_data'])
+    cm = plt.pcolormesh(sonar_time, sonar_backscatter_range_m, sonar_backscatter)
     cbar = plt.colorbar(cm)
-    cbar.set_label('backscatter')
-    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData['time']], sonarData['this_ping_depth_m'], 'r-', lw=0.1,
-             label='this ping Depth')
-    plt.plot([DT.datetime.fromtimestamp(float(i), tz=DT.timezone.utc) for i in sonarData['time']], sonarData['smooth_depth_m'], 'k-', lw=0.5,
-             label='smooth Depth')
-    plt.ylim([10, 0])
-    plt.legend(loc='lower left')
+    cbar.set_label("backscatter")
+    plt.plot(
+        sonar_time,
+        sonar_depth_line_primary,
+        "r-",
+        lw=0.1,
+        label=sonar_depth_line_primary_descriptor,
+    )
+    plt.plot(
+        sonar_time,
+        sonar_depth_line_secondary,
+        "k-",
+        lw=0.5,
+        label=sonar_depth_line_secondary_descriptor,
+    )
+    plt.ylim([y_lim_max, 0])
+    plt.legend(loc="lower left")
     # plt.gca().invert_yaxis()
     plt.tight_layout(rect=[0.05, 0.05, 0.99, 0.99], w_pad=0.01, h_pad=0.01)
     plt.savefig(ofname)
+    plt.close()

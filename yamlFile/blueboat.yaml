@@ -1,0 +1,32 @@
+    # Command-Line Interface: (OPTIONAL) Flags
+
+processing:
+  verbosity: 2           #  sets verbosity for debug,
+                         #                    1=Debug (most)
+                         #                    2=Info (normal)
+                         #                    3=Warning (least)
+  sonar_method: default  # which s500 depth reading to use for time-shifting and bottom reporting, avialable "
+                          #      "are ['default', 'smooth', 'instant', 'native'].
+                          #       'default' uses instant depth for time syncing and 'smooth' depths for final bathy out;
+                          #       'smooth' uses smoothed values for both,
+                          #       'instant' uses instant values for both
+                          #       'native' assumes the time on the sonar (in the file) is correct and does no correction
+  trace_bottom_chunk_size: 0
+  gnss_antenna_offset_m: 0.25   # vertical offset between GNSS antenna and sonar.
+  ppk_quality_threshold: 5
+
+  #use_nmea: False        # looks for a file that logs system time, level 1 gnss, and gnss time (used for time syncing)
+
+extra_args:
+  conv_bin: ref/convbin
+  geoid_file: ref/g2012bu0.bin  # binary geoid file, required for conversion of ellipsoid height to NAVD88")
+
+gnss:
+  make_pos: False        # make posfile (True) using RTKlib or provide one through external environment (false)")
+  rtklib_executable: ref/rnx2rtkp  #path for RTK_lib executable (required if --make-pos flag assigned)")
+  ppk_quality_threshold: 1      # this is a quality threshold 1: Fixed, 2: Float, 4:DGPS, 5: single
+                              # see appendix B for  more details: https://rtkexplorer.com/pdfs/manual_demo5.pdf  ")
+sonar:
+  sonar_model: d032      # acceptable [s500, d032] - data need to be in folder with this name
+  instant_sonar_confidence: 99  # This is a filter threshold for instantaneous confidence for each sonar ping")
+  smoothed_sonar_confidence: 60 # This is a filter threshold for smoothed confidence from the sonar")

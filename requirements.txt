@@ -8,6 +8,7 @@ h5py
 netCDF4
 pyyaml
 rasterio
+requests
 
 # Plotting
 matplotlib

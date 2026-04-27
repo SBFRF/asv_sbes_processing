@@ -14,13 +14,22 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
+   
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pylint black
+        pip install pylint black yapf
+    # - name: YAPF format
+    #   run: yapf --in-place --recursive .
+    # - name: Check for un-committed YAPF changes
+    #   run: git diff --exit-code
+    
     - name: black files 
       run: |
-        black . -l 100
+        black . -l 120
+    - name: Check for un-committed Black changes
+      run: git diff --exit-code
+    
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py') --max-line-length=100 --output=lint.txt || true
+        pylint $(git ls-files '*.py') --max-line-length=120 --output=lint.txt || true

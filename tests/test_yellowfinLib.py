@@ -2,6 +2,7 @@
 Unit tests for yellowfinLib.py
 Tests core functionality of data loading, processing, and conversion functions
 """
+
 import pytest
 import numpy as np
 import pandas as pd
@@ -24,19 +25,19 @@ class TestReadEmlidPos:
 
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 10
-        assert 'datetime' in result.columns
-        assert 'lat' in result.columns
-        assert 'lon' in result.columns
-        assert 'height' in result.columns
-        assert 'Q' in result.columns
+        assert "datetime" in result.columns
+        assert "lat" in result.columns
+        assert "lon" in result.columns
+        assert "height" in result.columns
+        assert "Q" in result.columns
 
     def test_read_emlid_pos_datetime_parsing(self, temp_dir, mock_pos_file):
         """Test that datetime is correctly parsed"""
         folder = os.path.dirname(mock_pos_file)
         result = yellowfinLib.read_emlid_pos([folder], plot=False)
 
-        assert pd.api.types.is_datetime64_any_dtype(result['datetime'])
-        assert result['datetime'].dt.tz is not None  # Should be UTC
+        assert pd.api.types.is_datetime64_any_dtype(result["datetime"])
+        assert result["datetime"].dt.tz is not None  # Should be UTC
 
     def test_read_emlid_pos_with_save(self, temp_dir, mock_pos_file):
         """Test saving to H5 file"""
@@ -63,18 +64,18 @@ class TestLoadH5ToDictionary:
         result = yellowfinLib.load_h5_to_dictionary(sample_sonar_data)
 
         assert isinstance(result, dict)
-        assert 'time' in result
-        assert 'smooth_depth_m' in result
-        assert 'profile_data' in result
-        assert isinstance(result['time'], np.ndarray)
+        assert "time" in result
+        assert "smooth_depth_m" in result
+        assert "profile_data" in result
+        assert isinstance(result["time"], np.ndarray)
 
     def test_load_h5_to_dictionary_data_integrity(self, sample_sonar_data):
         """Test that data is loaded correctly"""
         result = yellowfinLib.load_h5_to_dictionary(sample_sonar_data)
 
         # Check data shapes
-        assert len(result['time']) == 100
-        assert result['profile_data'].shape[1] == 100
+        assert len(result["time"]) == 100
+        assert result["profile_data"].shape[1] == 100
 
 
 class TestButterLowpassFilter:
@@ -113,23 +114,19 @@ class TestFindTimeShiftCrossCorr:
 
     def test_find_time_shift_no_shift(self):
         """Test with signals that have no shift"""
-        signal1 = np.sin(np.linspace(0, 4*np.pi, 100))
+        signal1 = np.sin(np.linspace(0, 4 * np.pi, 100))
         signal2 = signal1.copy()
 
-        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(
-            signal1, signal2, sampleFreq=1
-        )
+        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(signal1, signal2, sampleFreq=1)
 
         assert abs(phase_lag_samples) < 2  # Should be close to 0
 
     def test_find_time_shift_with_known_shift(self):
         """Test with known time shift"""
-        signal1 = np.sin(np.linspace(0, 4*np.pi, 100))
+        signal1 = np.sin(np.linspace(0, 4 * np.pi, 100))
         signal2 = np.roll(signal1, 10)  # Shift by 10 samples
 
-        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(
-            signal1, signal2, sampleFreq=1
-        )
+        phase_lag_samples, phase_lag_seconds = yellowfinLib.findTimeShiftCrossCorr(signal1, signal2, sampleFreq=1)
 
         # Should detect the 10 sample shift (or close to it)
         assert abs(phase_lag_samples - 10) < 5
@@ -174,7 +171,7 @@ class TestMLabDatetimeToEpoch:
 class TestConvertEllipsoid2NAVD88:
     """Tests for convertEllipsoid2NAVD88 function"""
 
-    @patch('yellowfinLib.geoids.GeoidG2012B')
+    @patch("yellowfinLib.geoids.GeoidG2012B")
     def test_convert_ellipsoid_basic(self, mock_geoid):
         """Test basic ellipsoid conversion"""
         mock_instance = Mock()
@@ -209,10 +206,10 @@ class TestLoadPPKData:
         result = yellowfinLib.loadPPKdata([folder])
 
         assert isinstance(result, pd.DataFrame)
-        assert 'datetime' in result.columns
-        assert 'epochTime' in result.columns
-        assert 'lat' in result.columns
-        assert 'lon' in result.columns
+        assert "datetime" in result.columns
+        assert "epochTime" in result.columns
+        assert "lat" in result.columns
+        assert "lon" in result.columns
 
     def test_load_ppk_data_empty_list(self):
         """Test with empty folder list"""
@@ -228,30 +225,30 @@ class TestUnpackYellowfinCombinedRaw:
         """Test unpacking combined raw H5 file"""
         # Create test H5 file
         fname = temp_dir / "combined.h5"
-        with h5py.File(fname, 'w') as hf:
-            hf.create_dataset('time', data=np.linspace(0, 100, 100))
-            hf.create_dataset('longitude', data=np.ones(100) * -75.0)
-            hf.create_dataset('latitude', data=np.ones(100) * 35.0)
-            hf.create_dataset('elevation', data=np.random.uniform(-5, 0, 100))
-            hf.create_dataset('fix_quality_GNSS', data=np.ones(100))
-            hf.create_dataset('sonar_smooth_depth', data=np.random.uniform(1, 5, 100))
-            hf.create_dataset('sonar_smooth_confidence', data=np.ones(100) * 80)
-            hf.create_dataset('sonar_instant_depth', data=np.random.uniform(1, 5, 100))
-            hf.create_dataset('sonar_instant_confidence', data=np.ones(100) * 90)
-            hf.create_dataset('sonar_backscatter_out', data=np.random.randint(0, 255, 100))
-            hf.create_dataset('bad_lat', data=np.array([]))
-            hf.create_dataset('bad_lon', data=np.array([]))
-            hf.create_dataset('xFRF', data=np.random.uniform(0, 1000, 100))
-            hf.create_dataset('yFRF', data=np.random.uniform(0, 2000, 100))
-            hf.create_dataset('Profile_number', data=np.ones(100))
+        with h5py.File(fname, "w") as hf:
+            hf.create_dataset("time", data=np.linspace(0, 100, 100))
+            hf.create_dataset("longitude", data=np.ones(100) * -75.0)
+            hf.create_dataset("latitude", data=np.ones(100) * 35.0)
+            hf.create_dataset("elevation", data=np.random.uniform(-5, 0, 100))
+            hf.create_dataset("fix_quality_GNSS", data=np.ones(100))
+            hf.create_dataset("sonar_smooth_depth", data=np.random.uniform(1, 5, 100))
+            hf.create_dataset("sonar_smooth_confidence", data=np.ones(100) * 80)
+            hf.create_dataset("sonar_instant_depth", data=np.random.uniform(1, 5, 100))
+            hf.create_dataset("sonar_instant_confidence", data=np.ones(100) * 90)
+            hf.create_dataset("sonar_backscatter_out", data=np.random.randint(0, 255, 100))
+            hf.create_dataset("bad_lat", data=np.array([]))
+            hf.create_dataset("bad_lon", data=np.array([]))
+            hf.create_dataset("xFRF", data=np.random.uniform(0, 1000, 100))
+            hf.create_dataset("yFRF", data=np.random.uniform(0, 2000, 100))
+            hf.create_dataset("Profile_number", data=np.ones(100))
 
         result = yellowfinLib.unpackYellowfinCombinedRaw(str(fname))
 
         assert isinstance(result, dict)
-        assert 'time' in result
-        assert 'latitude' in result
-        assert 'longitude' in result
-        assert len(result['time']) == 100
+        assert "time" in result
+        assert "latitude" in result
+        assert "longitude" in result
+        assert len(result["time"]) == 100
 
 
 class TestIsLocalToFRF:
@@ -259,21 +256,30 @@ class TestIsLocalToFRF:
 
     def test_is_local_to_frf_true(self):
         """Test with coordinates local to FRF"""
-        coords = {'yFRF': np.array([500, 1000, 1500])}
+        coords = {
+            "xFRF": np.array([100, 200, 300]),
+            "yFRF": np.array([500, 1000, 1500]),
+        }
         result = yellowfinLib.is_local_to_FRF(coords)
 
         assert result is True
 
     def test_is_local_to_frf_false(self):
         """Test with coordinates not local to FRF"""
-        coords = {'yFRF': np.array([50000, 60000, 70000])}
+        coords = {
+            "xFRF": np.array([-100, 200, -300]),
+            "yFRF": np.array([50000, 60000, 70000]),
+        }
         result = yellowfinLib.is_local_to_FRF(coords)
 
         assert result is False
 
     def test_is_local_to_frf_boundary(self):
         """Test boundary conditions"""
-        coords = {'yFRF': np.array([-100, 0, 100, 1900])}
+        coords = {
+            "xFRF": np.array([100, 200, 300, 500]),
+            "yFRF": np.array([-100, 0, 100, 1900]),
+        }
         result = yellowfinLib.is_local_to_FRF(coords)
 
         assert result is True
@@ -293,12 +299,12 @@ class TestLoadSonarS500Binary:
         sonar_file = temp_dir / "test.dat"
 
         # Create minimal valid sonar data (this is a simplified version)
-        with open(sonar_file, 'wb') as f:
+        with open(sonar_file, "wb") as f:
             # Write minimal binary data that won't crash the parser
             # This is a mock and won't represent real sonar data
-            f.write(b'BR')  # Start marker
-            f.write(b'2023-08-15 12:00:00.000000')  # Date string
-            f.write(b'\x00' * 100)  # Padding
+            f.write(b"BR")  # Start marker
+            f.write(b"2023-08-15 12:00:00.000000")  # Date string
+            f.write(b"\x00" * 100)  # Padding
 
         # Note: Full sonar binary format is complex, so we test error handling
         # In real tests, you would use actual sonar data samples
@@ -312,64 +318,62 @@ class TestLoadYellowfinNMEAFiles:
         folder = os.path.dirname(sample_nmea_data)
         output_file = temp_dir / "nmea_output.h5"
 
-        yellowfinLib.load_yellowfin_NMEA_files(
-            folder,
-            saveFname=str(output_file),
-            plotfname=False,
-            verbose=0
-        )
+        yellowfinLib.load_yellowfin_NMEA_files(folder, saveFname=str(output_file), plotfname=False, verbose=0)
 
         assert os.path.exists(output_file)
 
         # Check H5 file contents
-        with h5py.File(output_file, 'r') as hf:
-            assert 'lat' in hf.keys()
-            assert 'lon' in hf.keys()
-            assert 'gps_time' in hf.keys()
-            assert 'altMSL' in hf.keys()
+        with h5py.File(output_file, "r") as hf:
+            assert "lat" in hf.keys()
+            assert "lon" in hf.keys()
+            assert "gps_time" in hf.keys()
+            assert "altMSL" in hf.keys()
 
 
 class TestMakePOSFileFromRINEX:
     """Tests for makePOSfileFromRINEX function"""
 
-    @patch('os.system')
+    @patch("os.system")
     def test_make_pos_file(self, mock_system):
         """Test RTKlib execution"""
         mock_system.return_value = 0
 
         yellowfinLib.makePOSfileFromRINEX(
-            roverObservables='rover.obs',
-            baseObservables='base.obs',
-            navFile='nav.nav',
-            outfname='output.pos',
-            executablePath='rnx2rtkp'
+            roverObservables="rover.obs",
+            baseObservables="base.obs",
+            navFile="nav.nav",
+            outfname="output.pos",
+            executablePath="rnx2rtkp",
         )
 
         # Verify os.system was called
         assert mock_system.called
 
-    @patch('os.system')
+    @patch("os.system")
     def test_make_pos_file_with_sp3(self, mock_system):
         """Test RTKlib with SP3 file"""
         mock_system.return_value = 0
 
         yellowfinLib.makePOSfileFromRINEX(
-            roverObservables='rover.obs',
-            baseObservables='base.obs',
-            navFile='nav.nav',
-            outfname='output.pos',
-            executablePath='rnx2rtkp',
-            sp3='precise.sp3'
+            roverObservables="rover.obs",
+            baseObservables="base.obs",
+            navFile="nav.nav",
+            outfname="output.pos",
+            executablePath="rnx2rtkp",
+            sp3="precise.sp3",
         )
 
         assert mock_system.called
 
 
-@pytest.mark.parametrize("signal_length,cutoff,fs,order", [
-    (100, 10, 100, 2),
-    (500, 20, 200, 4),
-    (1000, 5, 50, 3),
-])
+@pytest.mark.parametrize(
+    "signal_length,cutoff,fs,order",
+    [
+        (100, 10, 100, 2),
+        (500, 20, 200, 4),
+        (1000, 5, 50, 3),
+    ],
+)
 def test_butter_lowpass_filter_parameterized(signal_length, cutoff, fs, order):
     """Parameterized test for various filter configurations"""
     signal = np.random.randn(signal_length)
