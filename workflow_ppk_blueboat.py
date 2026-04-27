@@ -328,7 +328,7 @@ def main(
 
     ofname = os.path.join(plotDir, "clockOffset.png")
     # TODO pull this figure out to a function
-    yellowfinLib.qaqc_time_offset_determination(ofname, pc_time_off)
+    yellowfinLib.plot_qaqc_time_offset_determination(ofname, pc_time_off)
     # 6.4 Use the cerulean instantaneous bed detection since not sure about delay with smoothed
     # adjust time of the sonar time stamp with timezone shift (ET -> UTC) and the timeshift between the computer and GPS
     sonarData["time"] = sonarData["time"] + ET2UTC - np.median(pc_time_off)  # convert to UTC
@@ -347,15 +347,15 @@ def main(
 
     ofname = os.path.join(plotDir, "SonarBackScatter.png")
     # 6.5 now plot sonar with time
-    yellowfinLib.qaqc_sonar_profiles(ofname, sonarData)
+    yellowfinLib.plot_qaqc_sonar_profiles(ofname, sonarData)
     ofname = os.path.join(plotDir, "AllData.png")
 
-    yellowfinLib.qaqc_plot_all_data_in_time(ofname, sonarData, sonar_range, payloadGpsData, T_ppk)
+    yellowfinLib.plot_qaqc_all_data_in_time(ofname, sonarData, sonar_range, payloadGpsData, T_ppk)
 
     ofname = os.path.join(plotDir, "subsetForCrossCorrelation.png")
 
     # 6.7 # plot sonar, select indices of interest, and then second subplot is time of interest
-    sonarIndicies = yellowfinLib.sonar_pick_cross_correlation_time(ofname, sonar_range)
+    sonarIndicies = yellowfinLib.plot_sonar_pick_cross_correlation_time(ofname, sonar_range)
     # now identify corresponding times from ppk GPS to those times of sonar that we're interested in
     indsPPK = np.where(
         (T_ppk["epochTime"] >= sonarData["time"][sonarIndicies[0]])
@@ -384,7 +384,7 @@ def main(
     )
 
     ofname = os.path.join(plotDir, "subsetAfterCrossCorrelation.png")
-    yellowfinLib.qaqc_post_sonar_time_shift(
+    yellowfinLib.plot_qaqc_post_sonar_time_shift(
         ofname,
         T_ppk,
         indsPPK,
@@ -534,13 +534,13 @@ def main(
         data["yFRF"] = coords["yFRF"]
         data["Profile_number"] = (np.ones_like(elevation_out[idxDataToSave]) * -999,)
         data["Survey_number"] = np.ones_like(elevation_out[idxDataToSave]) * -999
-        yellowfinLib.plotPlanViewOnArgus(data, argusGeotiff, ofName=os.path.join(plotDir, "yellowfinDepthsOnArgus.png"))
+        yellowfinLib.plot_planview_on_argus(data, argusGeotiff, ofName=os.path.join(plotDir, "yellowfinDepthsOnArgus.png"))
 
         ofname = os.path.join(plotDir, "singleProfile.png")
         yellowfinLib.plot_planview_FRF(ofname, coords, gnss_out, antenna_offset, sonar_instant_depth_out, idxDataToSave)
 
         data["UNIX_timestamp"] = data["time"]
-        data = yellowfinLib.transectSelection(
+        data = yellowfinLib.transect_selection_tool(
             pd.DataFrame.from_dict(data), outputDir=plotDir
         )  # bombs out on non-frf data
         data["Profile_number"] = data.pop("profileNumber")
