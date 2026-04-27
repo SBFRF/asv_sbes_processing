@@ -839,14 +839,21 @@ def main(
 if __name__ == "__main__":
     # filepath = '/data/yellowfin/20231109'  # 327'  # 04' #623' #705'
     args = parse_args(__version__)
+
     assert os.path.isdir(args.data_dir), "check your input filepath, code doesn't see the folder"
-    extra_args = None
-    if args.config is not None and args.config.endswith(".yaml"):
+
+    yaml_config = None
+
+    if args.config:
+        if not args.config.endswith(".yaml"):
+            raise AttributeError("config file must entd with .yaml")
+
         yaml_config = parse_config_yaml(args.config)
-        # args = update_namespace_from_dict(args, yaml_config)
+
         yaml_config = deconflict_args(args, yaml_config)
-    elif args.config is not None:
-        raise AttributeError("config file must end with .yaml")
+
+    else:
+        yaml_config = {}
 
     logging.warning("The arg parsing here is kinda stupid, please fix before merge")
     main(
