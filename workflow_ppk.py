@@ -259,7 +259,7 @@ def main(
 
     # sonar data
     fpathSonar = os.path.join(datadir, sonar_model)  # reads sonar from here
-    
+
     # Handle case-insensitive and alternative folder naming for sonar data
     if not os.path.isdir(fpathSonar) and sonar_model.lower() in ["d032", "ect-d032"]:
         # Try alternative folder names and nested structures
@@ -271,9 +271,9 @@ def main(
         for alt_path in possible_folders:
             if os.path.isdir(alt_path):
                 # Check if there's a date subfolder inside
-                date_subfolders = [d for d in os.listdir(alt_path) 
-                                   if os.path.isdir(os.path.join(alt_path, d)) 
-                                   and d.isdigit()]
+                date_subfolders = [
+                    d for d in os.listdir(alt_path) if os.path.isdir(os.path.join(alt_path, d)) and d.isdigit()
+                ]
                 if date_subfolders:
                     # Use the first (or matching) date subfolder
                     fpathSonar = os.path.join(alt_path, date_subfolders[0])

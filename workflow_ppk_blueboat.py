@@ -534,7 +534,9 @@ def main(
         data["yFRF"] = coords["yFRF"]
         data["Profile_number"] = (np.ones_like(elevation_out[idxDataToSave]) * -999,)
         data["Survey_number"] = np.ones_like(elevation_out[idxDataToSave]) * -999
-        yellowfinLib.plot_planview_on_argus(data, argusGeotiff, ofName=os.path.join(plotDir, "yellowfinDepthsOnArgus.png"))
+        yellowfinLib.plot_planview_on_argus(
+            data, argusGeotiff, ofName=os.path.join(plotDir, "yellowfinDepthsOnArgus.png")
+        )
 
         ofname = os.path.join(plotDir, "singleProfile.png")
         yellowfinLib.plot_planview_FRF(ofname, coords, gnss_out, antenna_offset, sonar_instant_depth_out, idxDataToSave)
