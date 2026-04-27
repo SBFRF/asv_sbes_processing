@@ -2,6 +2,13 @@
 
 processing:
   verbosity: 2           #  sets verbosity for debug, 1=Debug (most), 2=Info (normal), 3=Warning (least)')
+  sonar_method: default  # which s500 depth reading to use for time-shifting and bottom reporting, avialable "
+                        #      "are ['default', 'smoothed', 'instant']. default uses instant depth for time syncing and"
+                        #      " smooth depths for final bathy out; 'smooth' uses smoothed values for both, 'instant' "
+                        #      "uses instant values for both")
+  trace_bottom_chunk_size: 0 # turn to 0 to skip tracing
+  gnss_antenna_offset_m: 0.25   # vertical offset between GNSS antenna and sonar.
+  ppk_quality_threshold: 1
 
 extra_args:
   conv_bin: ref/convbin
@@ -14,10 +21,6 @@ gnss:
                               # see appendix B for  more details: https://rtkexplorer.com/pdfs/manual_demo5.pdf  ")
 sonar:
   sonar_model: s500      # acceptable [s500, d032]
-  sonar_method: default  # which s500 depth reading to use for time-shifting and bottom reporting, avialable "
-                         #      "are ['default', 'smooth', 'instant']. default uses instant depth for time syncing and"
-                         #      " smooth depths for final bathy out; 'smooth' uses smoothed values for both, 'instant' "
-                         #      "uses instant values for both")
 
   instant_sonar_confidence: 99  # This is a filter threshold for instantaneous confidence for each sonar ping")
   smoothed_sonar_confidence: 60 # This is a filter threshold for smoothed confidence from the sonar")

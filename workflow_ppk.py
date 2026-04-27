@@ -212,7 +212,7 @@ def main(
     verbose = yaml_config["processing"].get("verbosity", 2)  # overwrite hard argument with yaml
     verbosity_conversion(verbose)
     # unpack yaml configuration
-    antenna_offset = yaml_config.get(
+    antenna_offset = yaml_config["processing"].get(
         "gnss_antenna_offset_m", 0.25
     )  # meters between the antenna phase center and sounder head - default for yellowfin
     sonar_method = yaml_config["processing"].get("sonar_method", "default").lower()
