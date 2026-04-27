@@ -447,13 +447,13 @@ class TestWriteXyz:
         assert result == xyz_file
 
     def test_write_xyz_default_header(self, temp_dir):
-        """First line should be the default header with column names."""
+        """First line should be the default header with column names separated by commas."""
         xyz_file = str(temp_dir / "output.xyz")
         data = self._make_data()
         py2netCDF.write_xyz(xyz_file, data)
         with open(xyz_file) as f:
             header = f.readline().strip()
-        assert header == 'Longitude Latitude Elevation'
+        assert header == 'Longitude,Latitude,Elevation'
 
     def test_write_xyz_custom_header(self, temp_dir):
         """Custom header string should be used when provided."""
@@ -481,8 +481,8 @@ class TestWriteXyz:
         py2netCDF.write_xyz(xyz_file, data)
         with open(xyz_file) as f:
             lines = f.readlines()
-        # Parse the first data row (index 1 — skip header)
-        x, y, z = [float(v) for v in lines[1].split()]
+        # Parse the first data row (index 1 — skip header); default delimiter is comma
+        x, y, z = [float(v) for v in lines[1].split(',')]
         assert np.isclose(x, data['Longitude'][0])
         assert np.isclose(y, data['Latitude'][0])
         assert np.isclose(z, data['Elevation'][0])
@@ -498,22 +498,22 @@ class TestWriteXyz:
         py2netCDF.write_xyz(xyz_file, data, x_key='Easting', y_key='Northing', z_key='Elevation')
         with open(xyz_file) as f:
             lines = f.readlines()
-        assert lines[0].strip() == 'Easting Northing Elevation'
-        x, y, z = [float(v) for v in lines[1].split()]
+        assert lines[0].strip() == 'Easting,Northing,Elevation'
+        x, y, z = [float(v) for v in lines[1].split(',')]
         assert np.isclose(x, 400000.0)
         assert np.isclose(y, 3990000.0)
 
-    def test_write_xyz_comma_delimiter(self, temp_dir):
-        """Comma delimiter should produce CSV-style output."""
+    def test_write_xyz_space_delimiter(self, temp_dir):
+        """Space delimiter should produce space-separated output."""
         xyz_file = str(temp_dir / "output.xyz")
         data = self._make_data(2)
-        py2netCDF.write_xyz(xyz_file, data, delimiter=',')
+        py2netCDF.write_xyz(xyz_file, data, delimiter=' ')
         with open(xyz_file) as f:
             lines = f.readlines()
-        # Header should use commas
-        assert ',' in lines[0]
-        # Data rows should also use commas
-        parts = lines[1].split(',')
+        # Header should use spaces
+        assert lines[0].strip() == 'Longitude Latitude Elevation'
+        # Data rows should also use spaces
+        parts = lines[1].split()
         assert len(parts) == 3
 
     def test_write_xyz_missing_key_raises(self, tmp_path):

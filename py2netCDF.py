@@ -13,12 +13,12 @@ import datetime as DT
 import time as ttime
 
 
-def write_xyz(outputfname, data, x_key='Longitude', y_key='Latitude', z_key='Elevation', delimiter=' ', header=None):
-    """Write X, Y, Z data to a plain-text XYZ file.
+def write_xyz(outputfname, data, x_key='Longitude', y_key='Latitude', z_key='Elevation', delimiter=',', header=None):
+    """Write X, Y, Z data to a comma-delimited XYZ file.
 
-    The XYZ format is a simple whitespace- or comma-delimited text file with
-    one point per line.  It is supported by ArcGIS, QGIS, and many other GIS
-    applications that cannot open netCDF files.
+    The XYZ format is a comma-delimited text file with one point per line.
+    It is supported by ArcGIS, QGIS, and many other GIS applications that
+    cannot open netCDF files.
 
     Args:
         outputfname (str): Path for the output XYZ file.
@@ -31,7 +31,7 @@ def write_xyz(outputfname, data, x_key='Longitude', y_key='Latitude', z_key='Ele
         z_key (str): Key in *data* to use as the Z column (default
             ``'Elevation'``).
         delimiter (str): Column delimiter written between values (default
-            ``' '``).
+            ``','``).
         header (str or None): Optional single-line header string written as the
             first line of the file.  If *None* a default header derived from
             the column keys is used.
