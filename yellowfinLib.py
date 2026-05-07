@@ -619,12 +619,12 @@ def makePOSfileFromRINEX(
     os.system(f"./{executablePath} -o {outfname} -t -u -f {freq} {roverObservables} {baseObservables} {navFile} {sp3}")
 
 
-def plot_single_backscatterProfile(fname, time, sonarRange, profile_data, this_ping_depth_m, smooth_depth_m, index):
+def plot_single_backscatterProfile(fname, time, sonar_range, profile_data, this_ping_depth_m, smooth_depth_m, index):
     """Create's a plot that shows full backscatter and individual profile  with identified depths
 
     :param fname:
     :param time:
-    :param sonarRange:
+    :param sonar_range:
     :param profile_data:
     :param this_ping_depth_m:
     :param smooth_depth_m:
@@ -633,7 +633,7 @@ def plot_single_backscatterProfile(fname, time, sonarRange, profile_data, this_p
     """
     plt.figure(figsize=(12, 8))
     ax1 = plt.subplot2grid((4, 4), (0, 1), colspan=3, rowspan=4)
-    backscatter = ax1.pcolormesh(time, sonarRange[0], profile_data.T, shading="auto")
+    backscatter = ax1.pcolormesh(time, sonar_range[0], profile_data.T, shading="auto")
     ax1.plot(time, this_ping_depth_m, color="black", ms=0.1, label="instant depth", alpha=0.5)
     # ax1.plot(time, smooth_depth_m, 'black', ms=1, label='Smooth Depth')
     ax1.plot(time[index], smooth_depth_m[index], ms=15, marker="X", color="red")
@@ -642,9 +642,9 @@ def plot_single_backscatterProfile(fname, time, sonarRange, profile_data, this_p
     ax1.set_ylim([0, 5])
 
     ax2 = plt.subplot2grid((4, 4), (0, 0), rowspan=4, sharey=ax1)
-    ax2.plot(profile_data[index], sonarRange[0], alpha=1)
+    ax2.plot(profile_data[index], sonar_range[0], alpha=1)
     ax2.plot(
-        profile_data[index, np.argmin(np.abs(sonarRange[index] - this_ping_depth_m[index]))],
+        profile_data[index, np.argmin(np.abs(sonar_range[index] - this_ping_depth_m[index]))],
         this_ping_depth_m[index],
         "grey",
         marker="X",
@@ -652,7 +652,7 @@ def plot_single_backscatterProfile(fname, time, sonarRange, profile_data, this_p
         label="this ping",
     )
     ax2.plot(
-        profile_data[index, np.argmin(np.abs(sonarRange[index] - smooth_depth_m[index]))],
+        profile_data[index, np.argmin(np.abs(sonar_range[index] - smooth_depth_m[index]))],
         smooth_depth_m[index],
         "black",
         marker="X",
@@ -662,7 +662,7 @@ def plot_single_backscatterProfile(fname, time, sonarRange, profile_data, this_p
     ax2.legend()
 
     for ii in range(5):
-        ax2.plot(profile_data[index - ii], sonarRange[0], alpha=0.4 - ii * 0.07, color="k")
+        ax2.plot(profile_data[index - ii], sonar_range[0], alpha=0.4 - ii * 0.07, color="k")
     ax2.set_ylabel("depth [m]")
     plt.tight_layout()
     plt.savefig(fname)
