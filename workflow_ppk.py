@@ -451,7 +451,9 @@ def main(
     # 6.2: load all files we created in previous steps
     sonarData = yellowfinLib.load_h5_to_dictionary(saveFnameSonar)
     trace_bottom_chunk = yaml_config["processing"].get("trace_bottom_chunk_size", 250)
-    if trace_bottom_chunk == 0:
+    if sonar_method != "qaqc":
+        logging.info("Skipping bottom tracing because sonar_method is not 'qaqc'")
+    elif trace_bottom_chunk == 0:
         logging.info("Skipping bottom tracing because processing.trace_bottom_chunk_size is 0")
     else:
         if not os.path.exists(traced_fname_sonar):  # if the traced bottom doesn't exist, go into the gui
