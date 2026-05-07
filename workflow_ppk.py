@@ -123,10 +123,11 @@ def parse_args(__version__):
         type=str,
         default="default",
         help="which s500 depth reading to use for time-shifting and bottom reporting, available "
-        f"are {sonar_methods}. default uses instant depth for time syncing and"
-        " smooth depths for final bathy out; 'smoothed' uses smoothed values for both; 'instant' "
-        "uses instant values for both; 'qaqc' uses hand-traced values for both "
-        "(assumes sonar data h5 has been traced in sonar_qaqc tool externally)",
+        f"are {sonar_methods}. 'default' uses instant depth for time syncing and"
+        " smooth depths for final bathy out;  'instant' uses instant values for "
+        "both; 'smoothed' uses smoothed values for both; 'native' assumes the "
+        "time on the sonar (in the file) is correct and does no correction; "
+        "'qaqc' uses hand-traced values for both",
     )
     parser.add_argument(
         "--rtklib_executable",
