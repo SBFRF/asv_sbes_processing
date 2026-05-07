@@ -326,6 +326,10 @@ def main(
             timeString = timeString + "_low_"
             saveFnameSonar = os.path.join(datadir, f"{timeString}_sonarRaw.h5")
             traced_fname_sonar = os.path.join(datadir, f"{timeString}_sonarRaw_bottomTraced_wholeRecord.h5")
+        elif high_low == "high":
+            timeString = timeString + "_high_"
+            saveFnameSonar = os.path.join(datadir, f"{timeString}_sonarRaw.h5")
+            traced_fname_sonar = os.path.join(datadir, f"{timeString}_sonarRaw_bottomTraced_wholeRecord.h5")
         of_plot = os.path.join(plotDir, f"{timeString}_raw_sonar-ect-d032.png")
         if not os.path.isfile(saveFnameSonar):
             yellowfinLib.loadSonar_ectd032_ascii(
