@@ -619,7 +619,7 @@ def makePOSfileFromRINEX(
     os.system(f"./{executablePath} -o {outfname} -t -u -f {freq} {roverObservables} {baseObservables} {navFile} {sp3}")
 
 
-def plot_single_backscatterProfile(fname, time, sonar_range, profile_data, this_ping_depth_m, smooth_depth_m, index):
+def plot_single_backscatter_profile(fname, time, sonar_range, profile_data, this_ping_depth_m, smooth_depth_m, index):
     """Create's a plot that shows full backscatter and individual profile  with identified depths
 
     :param fname:
