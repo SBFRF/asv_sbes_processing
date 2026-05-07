@@ -217,7 +217,7 @@ def main(
         "gnss_antenna_offset_m", 0.25
     )  # meters between the antenna phase center and sounder head - default for yellowfin
     sonar_method = yaml_config["processing"].get("sonar_method", "default").lower()
-    sonar_model = yaml_config["sonar"].get("sonar_model", False).lower()
+    sonar_model = yaml_config["sonar"].get("sonar_model", "s500").lower()
     ppk_quality_threshold = yaml_config["processing"].get("ppk_quality_threshold", 1)
 
     #  date that Pi computer was changed to UTC time (will adjust timezone manually before this date)
