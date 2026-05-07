@@ -370,7 +370,11 @@ def loadSonar_s500_binary(dataPath, h5_ofname=None, verbose=False):
         np.zeros(allocateSize),
         np.zeros(allocateSize),
     )
-    (ping_duration_sec, analog_gain, profile_data_length,) = (
+    (
+        ping_duration_sec,
+        analog_gain,
+        profile_data_length,
+    ) = (
         np.zeros(allocateSize),
         np.zeros(allocateSize),
         np.zeros(allocateSize),
