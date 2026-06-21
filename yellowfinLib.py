@@ -19,10 +19,16 @@ from matplotlib import pyplot as plt
 from rasterio import plot as rplt
 from testbedutils import geoprocess
 from scipy import signal
-import contextily as ctx
 from pyproj import Transformer
 from scipy.signal import correlate
 from pygeodesy import geoids
+
+# Optional dependency for basemap imagery - visualization only
+try:
+    import contextily as ctx
+    HAS_CONTEXTILY = True
+except ImportError:
+    HAS_CONTEXTILY = False
 
 def read_emlid_pos(fldrlistPPK, plot=False, saveFname=None):
     """read and parse multiple pos files in multiple folders provided
@@ -839,6 +845,7 @@ def transectSelection(data, **kwargs):
 
     Keyword Args:
         'outputDir': this is the output directory for the file name save
+        'non_interactive': if True, skip transect selection and return data as-is
     Returns:
         data: input dataframe with columns isTransect and profileNumber added, isTransect is a boolean denoting
         whether a point is part of a transect, profileNumber is a float to designate the transect a point is a part of
@@ -847,12 +854,28 @@ def transectSelection(data, **kwargs):
     """
     outputDir = kwargs.get("outputDir", os.getcwd())
     plotting = kwargs.get("savePlots", True)
+    non_interactive = kwargs.get("non_interactive", None)
+
+    # Check for non-interactive mode
+    if non_interactive is None:
+        import matplotlib
+        backend = matplotlib.get_backend().lower()
+        non_interactive = (os.environ.get('SWACSS_NON_INTERACTIVE', '').lower() in ('1', 'true', 'yes')
+                          or 'agg' in backend
+                          or os.environ.get('MPLBACKEND', '').lower() == 'agg')
+
     # For date string in saved plot file name, convert UNIX timestamp → datetime → YYYYMMDD string
     ts = DT.datetime.fromtimestamp(float(data['date'][0]), tz=DT.timezone.utc)
     ts_yyyymmdd = ts.strftime("%Y%m%d")  # e.g., 20240716
     # added columns for isTransect boolean and profileNumber float to data dataframe
     data["isTransect"] = [False] * data.shape[0]
     data["profileNumber"] = [float("nan")] * data.shape[0]
+
+    # In non-interactive mode, skip transect selection
+    if non_interactive:
+        logging.info("Non-interactive mode: skipping transect selection")
+        return data
+
     # create copy of data for display, points are removed from the frame once identified as part of a transect
     dispData = data.copy(deep=True)
     # create copies of data and display data to hold previous version for undo function
@@ -1145,12 +1168,18 @@ def add_basemap_imagery(ax, attribution_size=6):
         bool: True if basemap was successfully added, False otherwise
 
     Notes:
+        - Requires optional 'contextily' package (install with: pip install contextily)
         - Primary source: USGS aerial imagery (US Geological Survey)
         - Fallback source: OpenStreetMap
         - Coordinates must be in Web Mercator projection (EPSG:3857)
         - Works offline: Plot will be generated without basemap if network unavailable
         - All exceptions are caught to ensure plot generation continues
     """
+    if not HAS_CONTEXTILY:
+        print("Info: contextily package not installed - continuing without basemap imagery")
+        print("  To enable basemap imagery, install with: pip install contextily")
+        return False
+    
     try:
         # Use USGS aerial imagery as primary open data source
         ctx.add_basemap(ax, source=ctx.providers.USGS.USImageryTopo, attribution_size=attribution_size)
@@ -1302,17 +1331,57 @@ def qaqc_time_offset_determination(ofname, pc_time_off):
     print(f'the PC time (sonar time stamp) is {np.median(pc_time_off):.2f} seconds behind the GNSS timestamp')
     plt.close()
 
-def sonar_pick_cross_correlation_time(ofname, sonar_range):
+def sonar_pick_cross_correlation_time(ofname, sonar_range, non_interactive=None,
+                                       start_fraction=None, end_fraction=None):
+    """Select sonar indices for cross-correlation time syncing.
+
+    Args:
+        ofname: Output filename for plot
+        sonar_range: Array of sonar depth values
+        non_interactive: If True, use specified fraction range. If None, check
+                        SWACSS_NON_INTERACTIVE env var or matplotlib backend.
+        start_fraction: Start fraction of data (0.0-1.0). Defaults to 0.1.
+                       Can also be set via SWACSS_SONAR_START_FRACTION env var.
+        end_fraction: End fraction of data (0.0-1.0). Defaults to 0.9.
+                     Can also be set via SWACSS_SONAR_END_FRACTION env var.
+    """
+    # Check for non-interactive mode
+    if non_interactive is None:
+        import matplotlib
+        backend = matplotlib.get_backend().lower()
+        non_interactive = (os.environ.get('SWACSS_NON_INTERACTIVE', '').lower() in ('1', 'true', 'yes')
+                          or 'agg' in backend
+                          or os.environ.get('MPLBACKEND', '').lower() == 'agg')
+
+    # Get window fractions from env vars or defaults
+    if start_fraction is None:
+        start_fraction = float(os.environ.get('SWACSS_SONAR_START_FRACTION', '0.1'))
+    if end_fraction is None:
+        end_fraction = float(os.environ.get('SWACSS_SONAR_END_FRACTION', '0.9'))
+
     plt.figure(figsize=(10, 4))
     plt.subplot(211)
     plt.title('all data: select start/end point for measured depths to do time-syncing over ')
     plt.plot(sonar_range)
     plt.ylim([0, 10])
-    d = plt.ginput(2, timeout=-999)
+
+    n = len(sonar_range)
+    if non_interactive:
+        # Use specified fraction of data
+        start_idx = int(n * start_fraction)
+        end_idx = int(n * end_fraction)
+        logging.info(f"Non-interactive mode: using sonar indices {start_idx} to {end_idx} "
+                    f"(fractions {start_fraction:.2f}-{end_fraction:.2f} of {n})")
+    else:
+        d = plt.ginput(2, timeout=-999)
+        # Now pull corresponding indices for sonar data for same time
+        assert len(d) == 2, "need 2 points from mouse clicks"
+        start_idx = max(0, int(np.floor(d[0][0])))
+        end_idx = min(n, int(np.ceil(d[1][0])))
+
+    sonarIndicies = np.arange(start_idx, end_idx)
+
     plt.subplot(212)
-    # Now pull corresponding indices for sonar data for same time
-    assert len(d) == 2, "need 2 points from mouse clicks"
-    sonarIndicies = np.arange(np.floor(d[0][0]).astype(int), np.ceil(d[1][0]).astype(int))
     plt.plot(sonar_range[sonarIndicies])
     plt.title('my selected data to proceed with cross-correlation/time syncing')
     plt.tight_layout()

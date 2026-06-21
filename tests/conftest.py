@@ -5,11 +5,29 @@ Shared test fixtures and configuration for pytest
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend for CI
 
+import os
+import tarfile
+from pathlib import Path
+
 import pytest
 import numpy as np
 import pandas as pd
 import h5py
 
+
+# Auto-extract mini_files test data from archive if not already present
+_DATA_DIR = Path(__file__).parent / "data"
+_ARCHIVE = _DATA_DIR / "mini_files.tar.gz"
+_EXTRACTED = _DATA_DIR / "mini_files"
+
+if _ARCHIVE.exists() and not _EXTRACTED.exists():
+    with tarfile.open(_ARCHIVE, "r:gz") as tar:
+        # Validate paths to prevent path traversal attacks
+        for member in tar.getmembers():
+            member_path = Path(_DATA_DIR / member.name).resolve()
+            if not str(member_path).startswith(str(_DATA_DIR.resolve())):
+                raise RuntimeError(f"Unsafe path in archive: {member.name}")
+        tar.extractall(path=_DATA_DIR)
 
 
 
