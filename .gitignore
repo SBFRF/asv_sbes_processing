@@ -28,6 +28,9 @@ htmlcov/
 .tox/
 .nox/
 coverage.xml
+
+# Extracted test data (regenerated from tests/data/mini_files.tar.gz)
+tests/data/mini_files/
 *.cover
 .cache
 nosetests.xml
