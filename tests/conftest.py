@@ -22,6 +22,11 @@ _EXTRACTED = _DATA_DIR / "mini_files"
 
 if _ARCHIVE.exists() and not _EXTRACTED.exists():
     with tarfile.open(_ARCHIVE, "r:gz") as tar:
+        # Validate paths to prevent path traversal attacks
+        for member in tar.getmembers():
+            member_path = Path(_DATA_DIR / member.name).resolve()
+            if not str(member_path).startswith(str(_DATA_DIR.resolve())):
+                raise RuntimeError(f"Unsafe path in archive: {member.name}")
         tar.extractall(path=_DATA_DIR)
 
 
