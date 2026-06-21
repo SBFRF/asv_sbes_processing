@@ -5,7 +5,7 @@ Tests command-line argument parsing and workflow utility functions
 import pytest
 import sys
 import logging
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import workflow_ppk
 
 
@@ -30,7 +30,7 @@ class TestParseArgs:
             'prog',
             '-d', '/path/to/data',
             '-g', '/path/to/geoid.bin',
-            '-p', 'True',
+            '-p',
             '-v', '1',
             '--sonar_method', 'instant',
             '--rtklib_executable', '/path/to/rnx2rtkp',

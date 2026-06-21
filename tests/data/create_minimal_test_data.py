@@ -43,20 +43,6 @@ def parse_ppk_timestamp(line):
         return None
 
 
-def validate_ppk_line(line):
-    """
-    Validate a PPK data line format.
-
-    Args:
-        line: PPK data line to validate
-
-    Returns:
-        The original line if valid, otherwise returns the line unchanged
-    """
-    # Just return the line as-is (no anonymization needed)
-    return line
-
-
 def extract_minimal_ppk(input_file, output_file, duration_seconds=60):
     """
     Extract minimal test data from median time point of PPK survey.
