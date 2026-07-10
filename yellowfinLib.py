@@ -1771,12 +1771,12 @@ def plot_planview_lonlat(
         vmax=vmax,
         vmin=vmin,
         label="processed depths",
-        zorder=3,
+        zorder=4,
     )
     cbar = plt.colorbar(scatter, ax=ax)
     cbar.set_label("NAVD88 Elevation [m]", fontsize=fs)
-    ax.plot(x_ppk, y_ppk, "k.", ms=0.25, label="vehicle trajectory", zorder=2)
-    ax.plot(x_bad, y_bad, "rx", ms=3, label="bad sonar data, good GPS", zorder=4)
+    ax.plot(x_ppk, y_ppk, "k.", ms=0.25, label="vehicle trajectory", zorder=3)
+    ax.plot(x_bad, y_bad, "rx", ms=3, label="bad sonar data, good GPS", zorder=2)
     # FRF pier plotting (commented out - redundant with satellite imagery showing pier)
     # if FRF == True:
     #     ax.plot(x_pier_transformed, y_pier_transformed, 'k-', lw=5, label='FRF pier', zorder=4)
@@ -1868,12 +1868,18 @@ def plot_sonar_pick_cross_correlation_time(ofname, sonar_range):
     plt.subplot(211)
     plt.title("all data: select start/end point for measured depths to do time-syncing over ")
     plt.plot(sonar_range)
+    ymax = np.nanmax(sonar_range)
+    plt.ylim(0, ymax * 1.05)
     d = plt.ginput(2, timeout=-999)
     plt.subplot(212)
     # Now pull corresponding indices for sonar data for same time
     assert len(d) == 2, "need 2 points from mouse clicks"
     sonarIndicies = np.arange(np.floor(d[0][0]).astype(int), np.ceil(d[1][0]).astype(int))
     plt.plot(sonar_range[sonarIndicies])
+    selected = sonar_range[sonarIndicies]
+    plt.plot(selected)
+    ymax = np.nanmax(selected)
+    plt.ylim(0, ymax * 1.05)
     plt.title("my selected data to proceed with cross-correlation/time syncing")
     plt.tight_layout()
     plt.savefig(ofname)

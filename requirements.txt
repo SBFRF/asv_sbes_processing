@@ -9,6 +9,7 @@ netCDF4
 pyyaml
 rasterio
 requests
+tables
 
 # Plotting
 matplotlib

@@ -1,22 +1,6 @@
 import os
 import matplotlib
 
-
-def run_sonar_tracer_gui(*args, **kwargs):
-    try:
-        from bottomTracerGUI import run_sonar_tracer_gui as _run_sonar_tracer_gui
-    except (ImportError, ModuleNotFoundError) as exc:
-        raise RuntimeError(
-            "The sonar tracer GUI requires optional GUI dependencies "
-            "(such as tkinter) that are not available in this environment. "
-            "Run without tracing in headless/CI environments, or install the "
-            "required GUI packages to use sonar tracing."
-        ) from exc
-
-    return _run_sonar_tracer_gui(*args, **kwargs)
-
-
-# matplotlib.use("TkAgg")
 from scipy import interpolate, signal
 import py2netCDF
 
@@ -37,11 +21,25 @@ import zipfile
 import tqdm
 from testbedutils import geoprocess
 import argparse, logging, yaml
+from turnSyncGUI import TurnSyncGUI
 from mission_yaml_files import make_summary_yaml, make_failure_yaml
 
 sonar_methods = ["default", "instant", "smoothed", "native", "qaqc"]
 
 __version__ = 0.5
+
+def run_sonar_tracer_gui(*args, **kwargs):
+    try:
+        from bottomTracerGUI import run_sonar_tracer_gui as _run_sonar_tracer_gui
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise RuntimeError(
+            "The sonar tracer GUI requires optional GUI dependencies "
+            "(such as tkinter) that are not available in this environment. "
+            "Run without tracing in headless/CI environments, or install the "
+            "required GUI packages to use sonar tracing."
+        ) from exc
+
+    return _run_sonar_tracer_gui(*args, **kwargs)
 
 
 def deconflict_args(args, yaml_config):
@@ -217,6 +215,9 @@ def main(
         "gnss_antenna_offset_m", 0.25
     )  # meters between the antenna phase center and sounder head - default for yellowfin
     sonar_method = yaml_config["processing"].get("sonar_method", "default").lower()
+    time_sync_method = yaml_config["processing"].get(
+        "time_sync_method", "wave_correlation"
+    ).lower()
     sonar_model = yaml_config["sonar"].get("sonar_model", "s500").lower()
     ppk_quality_threshold = yaml_config["processing"].get("ppk_quality_threshold", 1)
 
@@ -224,28 +225,23 @@ def main(
     yellowfin_clock_reset_date = DT.datetime(2023, 7, 10)  # do not adjust this date!
     if sonar_method == "default":
         bathy_report = "smoothed"
-        time_sync = "instant"
         sonar_confidence = smoothed_sonar_confidence
     elif sonar_method == "instant":
         sonar_confidence = instant_sonar_confidence
         bathy_report = sonar_method
-        time_sync = sonar_method
     elif sonar_method == "smoothed":
         sonar_confidence = smoothed_sonar_confidence
         bathy_report = sonar_method
-        time_sync = sonar_method
     elif sonar_method == "native":
         sonar_confidence = 100  # Unknown
         bathy_report = sonar_method
-        time_sync = sonar_method
     elif sonar_method == "qaqc":
         sonar_confidence = 100  # not used in filtering data, we assume 100% confidence in human tracing
         bathy_report = sonar_method
-        time_sync = sonar_method
     else:
         raise ValueError(f"acceptable sonar methods include {sonar_methods}")
 
-    logging.info(f"procesing prameters:  sonar time sync method {time_sync}")
+    logging.info(f"procesing prameters:  sonar time sync method {time_sync_method}")
     logging.info(f"procesing prameters:  bathy sonar method {bathy_report}")
     logging.info(f"input folder: {datadir}")
     logging.info(f"ppk_quality_threshold: {ppk_quality_threshold}")
@@ -470,6 +466,8 @@ def main(
     # T_ppk['epochTime'] = T_ppk['epochTime'] - 18  # 18 is leap second adjustment
     # T_ppk['datetime'] = T_ppk['datetime'] - DT.timedelta(seconds=18)  # making sure both are equal
     # commented because the cross-correlation should account for this anyway (?)
+    if sonar_method == "qaqc":
+        sonarData["this_ping_depth_m"] = sonarData["qaqc_depth_m"] >= 0
 
     # convert raw ellipsoid values from satellite measurement to that of a vertical datum.  This uses NAVD88 [m] NAD83
     T_ppk["GNSS_elevation_NAVD88"] = yellowfinLib.convertEllipsoid2NAVD88(
@@ -495,7 +493,13 @@ def main(
         sonar_bottom_algorithm_m = sonarData["this_ping_depth_m"]
         qualityLogic = sonarData["this_ping_depth_measurement_confidence"] > instant_sonar_confidence
     elif sonar_method == "qaqc":
-        sonar_bottom_algorithm_m = sonarData["qaqc_depth_m"]
+        depth = sonarData["qaqc_depth_m"]
+        depth = np.where(
+            (depth < 0) | (~np.isfinite(depth)),
+            np.nan,
+            depth
+        )
+        sonar_bottom_algorithm_m = depth
         qualityLogic = sonarData["qaqc_depth_m"] >= 0
     elif sonar_method == "native":
         sonar_bottom_algorithm_m = sonarData["this_ping_depth_m"]
@@ -514,67 +518,102 @@ def main(
     if sonar_method == "native":
         sonar_time_out = sonarData["time"]
     else:
-        # 6.7 # plot sonar, select indices of interest, and then second subplot is time of interest
-        ofname = os.path.join(plotDir, f"{timeString}_subsetForCrossCorrelation.png")
-        sonarIndicies = yellowfinLib.plot_sonar_pick_cross_correlation_time(ofname, sonar_bottom_algorithm_m)
-        # now identify corresponding times from ppk GPS to those times of sonar that we're interested in
-        indsPPK = np.where(
-            (T_ppk["epochTime"] >= sonarData["time"][sonarIndicies[0]])
-            & (T_ppk["epochTime"] <= sonarData["time"][sonarIndicies[-1]])
-        )[0]
+        if time_sync_method == "wave_correlation":
+            # Plot sonar, select indices of interest, and then second subplot is time of interest
+            ofname = os.path.join(plotDir, f"{timeString}_subsetForCrossCorrelation.png")
+            sonarIndicies = yellowfinLib.plot_sonar_pick_cross_correlation_time(ofname, sonar_bottom_algorithm_m)
+            # now identify corresponding times from ppk GPS to those times of sonar that we're interested in
+            indsPPK = np.where(
+                (T_ppk["epochTime"] >= sonarData["time"][sonarIndicies[0]])
+                & (T_ppk["epochTime"] <= sonarData["time"][sonarIndicies[-1]])
+            )[0]
 
-        # 6.7 interpolate and calculate the phase offset between the signals
+            # Interpolate and calculate the phase offset between the signals
+            # Interpolate the lower sampled (sonar 3.33 hz) to the higher sampled data (gps 10 hz)
+            # identify common timestamp to interpolate to at higher frequency
+            commonTime = np.linspace(
+                T_ppk["epochTime"][indsPPK[0]],
+                T_ppk["epochTime"][indsPPK[-1]],
+                int((T_ppk["epochTime"][indsPPK[-1]] - T_ppk["epochTime"][indsPPK[0]]) / 0.1),
+                endpoint=True,
+            )
 
-        ## now interpolate the lower sampled (sonar 3.33 hz) to the higher sampled data (gps 10 hz)
-        # identify common timestamp to interpolate to at higher frequency
-        commonTime = np.linspace(
-            T_ppk["epochTime"][indsPPK[0]],
-            T_ppk["epochTime"][indsPPK[-1]],
-            int((T_ppk["epochTime"][indsPPK[-1]] - T_ppk["epochTime"][indsPPK[0]]) / 0.1),
-            endpoint=True,
-        )
+            # Constrain commonTime to be within sonar data bounds to avoid NaN values in interpolation
+            sonar_time_min = sonarData["time"].min()
+            sonar_time_max = sonarData["time"].max()
+            valid_sonar_idx = ~np.isnan(sonarData["this_ping_depth_m"])
 
-        # Constrain commonTime to be within sonar data bounds to avoid NaN values in interpolation
-        sonar_time_min = sonarData["time"].min()
-        sonar_time_max = sonarData["time"].max()
-        valid_sonar_idx = ~np.isnan(sonarData["this_ping_depth_m"])
+            valid_time_mask = (commonTime >= sonar_time_min) & (commonTime <= sonar_time_max)
+            commonTime = commonTime[valid_time_mask]
 
-        valid_time_mask = (commonTime >= sonar_time_min) & (commonTime <= sonar_time_max)
-        commonTime = commonTime[valid_time_mask]
+            # always use instant ping for time offset calculation
+            f = interpolate.interp1d(
+                sonarData["time"][valid_sonar_idx],
+                sonarData["this_ping_depth_m"][valid_sonar_idx],
+            )
+            sonar_range_i = f(commonTime)
+            f = interpolate.interp1d(T_ppk["epochTime"], T_ppk["height"])
+            ppkHeight_i = f(commonTime)
+            # now i have both signals at the same time stamps
+            phaseLagInSamps, phaseLaginTime = yellowfinLib.findTimeShiftCrossCorr(
+                signal.detrend(ppkHeight_i),
+                signal.detrend(sonar_range_i),
+                sampleFreq=np.median(np.diff(commonTime)),
+            )
 
-        # always use instant ping for time offset calculation
-        f = interpolate.interp1d(
-            sonarData["time"][valid_sonar_idx],
-            sonarData["this_ping_depth_m"][valid_sonar_idx],
-        )
-        sonar_range_i = f(commonTime)
-        f = interpolate.interp1d(T_ppk["epochTime"], T_ppk["height"])
-        ppkHeight_i = f(commonTime)
-        # now i have both signals at the same time stamps
-        phaseLagInSamps, phaseLaginTime = yellowfinLib.findTimeShiftCrossCorr(
-            signal.detrend(ppkHeight_i),
-            signal.detrend(sonar_range_i),
-            sampleFreq=np.median(np.diff(commonTime)),
-        )
+            ofname = os.path.join(plotDir, f"{timeString}_subsetAfterCrossCorrelation.png")
+            yellowfinLib.plot_qaqc_post_sonar_time_shift(
+                ofname,
+                T_ppk,
+                indsPPK,
+                commonTime,
+                ppkHeight_i,
+                sonar_range_i,
+                phaseLaginTime,
+                sonarData,
+                sonarIndicies,
+                sonar_bottom_algorithm_m,
+            )
 
-        ofname = os.path.join(plotDir, f"{timeString}_subsetAfterCrossCorrelation.png")
-        yellowfinLib.plot_qaqc_post_sonar_time_shift(
-            ofname,
-            T_ppk,
-            indsPPK,
-            commonTime,
-            ppkHeight_i,
-            sonar_range_i,
-            phaseLaginTime,
-            sonarData,
-            sonarIndicies,
-            sonar_bottom_algorithm_m,
-        )
+            print(f"sonar data adjusted by {phaseLaginTime:.3f} seconds")
 
-        print(f"sonar data adjusted by {phaseLaginTime:.3f} seconds")
+            ## now process all data for saving to file
+            sonar_time_out = sonarData["time"] + phaseLaginTime
 
-        ## now process all data for saving to file
-        sonar_time_out = sonarData["time"] + phaseLaginTime
+        elif time_sync_method == "feature_match_gui":
+            ofname = os.path.join(plotDir, f"{timeString}_subsetForCrossCorrelation.png")
+            valid_sonar_idx = ~np.isnan(sonarData["this_ping_depth_m"]) & sonarData["this_ping_depth_m"] >= 0
+
+            # always use instant ping for time offset calculation
+            f = interpolate.interp1d(
+                sonarData["time"][valid_sonar_idx],
+                sonarData["this_ping_depth_m"][valid_sonar_idx],
+            )
+
+            sonarData["this_ping_depth_m"] = depth
+
+            gui = TurnSyncGUI(T_ppk, sonarData)
+
+            result = gui.compute_offset()
+
+            logging.info(f"Manual offset mean: {result['mean_offset']}")
+            logging.info(f"Std dev: {result['std_offset']}")
+
+            phaseLaginTime = result["mean_offset"]
+
+            ofname = os.path.join(plotDir, f"{timeString}_subsetAfterCrossCorrelation.png")
+
+            print(f"sonar data adjusted by {phaseLaginTime:.3f} seconds")
+
+            ## now process all data for saving to file
+            sonar_time_out = sonarData["time"] + phaseLaginTime
+            
+        else:
+            logging.warning(
+                "Invalid time_sync_method given using native time stamps. Valid time_sync_methods "
+                "are 'wave_correlation' and 'feature_match_gui'"
+            )
+            sonar_time_out = sonarData["time"]
 
     ## ok now put the sonar data on the GNSS timestamps which are decimal seconds.  We can do this with sonar_time_out,
     # because we just adjusted by the phase lag to make sure they are time synced.
