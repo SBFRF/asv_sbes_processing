@@ -1,5 +1,6 @@
 import matplotlib
-matplotlib.use('QtAgg')
+
+matplotlib.use("QtAgg")
 import datetime as DT
 import os
 from matplotlib import pyplot as plt
@@ -14,28 +15,28 @@ dateOfInterest = DT.datetime(2023, 11, 9, 13, 0, 0)  # "20231109T120000Z"
 # argusName = yellowfinLib.threadGetArgusImagery(dateOfInterest)
 # yellowfinLib.plotPlanViewOnArgus(data, argusName, ofName='')
 
-yellowFinDatafname = '/data/yellowfin/20231109/20231109_totalCombinedRawData.h5'
+yellowFinDatafname = "/data/yellowfin/20231109/20231109_totalCombinedRawData.h5"
 data = yellowfinLib.unpackYellowfinCombinedRaw(yellowFinDatafname)
 # convert to all coords
-coords = geoprocess.FRFcoord(p1=data['longitude'], p2=data['latitude'], coordType='LL')
-pierStart = geoprocess.FRFcoord(0, 515, coordType='FRF')
-pierEnd = geoprocess.FRFcoord(534, 515, coordType='FRF')
-lineNumbers = sorted(np.unique(data['Profile_number']))[1:]
+coords = geoprocess.FRFcoord(p1=data["longitude"], p2=data["latitude"], coordType="LL")
+pierStart = geoprocess.FRFcoord(0, 515, coordType="FRF")
+pierEnd = geoprocess.FRFcoord(534, 515, coordType="FRF")
+lineNumbers = sorted(np.unique(data["Profile_number"]))[1:]
 ## isolate and focus on one FRF line profile
 order = 2
 
-cutoff = 1/10 #m
-fig, axs = plt.subplots(ncols=1, nrows=len(lineNumbers), figsize=(15,8))
+cutoff = 1 / 10  # m
+fig, axs = plt.subplots(ncols=1, nrows=len(lineNumbers), figsize=(15, 8))
 for i, lineNumber in enumerate(lineNumbers):
-    logic = (data['Profile_number'] == lineNumbers[i])
-    axs[i].plot(coords['xFRF'][logic], data['elevation'][logic], label='raw')
-    axs[i].set_title(f'lineNumber {lineNumbers[i]:.1f}')
-    axs[i].set_ylabel('elevation[m]')
-    for cutoff in [1/20, 1/50]:
+    logic = data["Profile_number"] == lineNumbers[i]
+    axs[i].plot(coords["xFRF"][logic], data["elevation"][logic], label="raw")
+    axs[i].set_title(f"lineNumber {lineNumbers[i]:.1f}")
+    axs[i].set_ylabel("elevation[m]")
+    for cutoff in [1 / 20, 1 / 50]:
         for order in [2, 5, 10]:
-            b, a = signal.butter(order, cutoff, 'low', analog=False)
-            output = signal.filtfilt(b, a, data['elevation'][logic])
-            axs[i].plot(coords['xFRF'][logic], output, label=f'filtered c={cutoff} o={order}')
+            b, a = signal.butter(order, cutoff, "low", analog=False)
+            output = signal.filtfilt(b, a, data["elevation"][logic])
+            axs[i].plot(coords["xFRF"][logic], output, label=f"filtered c={cutoff} o={order}")
 
 axs[i].legend()
 plt.tight_layout()

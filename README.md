@@ -64,3 +64,7 @@ convention of `MM-dd-YYYY` though this is checked against the root data director
 Sometime around 7/10 we changed Pi computer clock was changed from ET to UTC.  We should be able to compare system clock time to Nick's Field notes for start log to confirm if 8/16 survey was in ET or UTC. It's important to note that there is a hard/stupid fix of data prior to that to UTC.
 
 
+# contributions: 
+if you'd like to contribute we welcome any additions/modifications.  
+pull requests are requesting unit tests and requiring `black . -l 120`.  The CICD pipeline will fail without this style change
+

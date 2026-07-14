@@ -2,6 +2,7 @@
 Unit tests for workflow_ppk.py
 Tests command-line argument parsing and workflow utility functions
 """
+
 import pytest
 import sys
 import logging
@@ -14,63 +15,71 @@ class TestParseArgs:
 
     def test_parse_args_minimal_required(self):
         """Test with minimal required arguments"""
-        test_args = ['prog', '-d', '/path/to/data']
+        test_args = ["prog", "-d", "/path/to/data"]
 
-        with patch.object(sys, 'argv', test_args):
+        with patch.object(sys, "argv", test_args):
             args = workflow_ppk.parse_args(workflow_ppk.__version__)
 
-        assert args.data_dir == '/path/to/data'
-        assert args.geoid_file == 'ref/g2012bu0.bin'  # default
+        assert args.data_dir == "/path/to/data"
+        assert args.geoid_file == "ref/g2012bu0.bin"  # default
         assert args.make_pos == False  # default
         assert args.verbosity == 2  # default
 
     def test_parse_args_all_options(self):
         """Test with all optional arguments"""
         test_args = [
-            'prog',
-            '-d', '/path/to/data',
-            '-g', '/path/to/geoid.bin',
-            '-p',
-            '-v', '1',
-            '--sonar_method', 'instant',
-            '--rtklib_executable', '/path/to/rnx2rtkp',
-            '--ppk_quality_threshold', '2',
-            '--instant_sonar_confidence', '95',
-            '--smoothed_sonar_confidence', '70'
+            "prog",
+            "-d",
+            "/path/to/data",
+            "-g",
+            "/path/to/geoid.bin",
+            "-p",
+            "-v",
+            "1",
+            "--sonar_method",
+            "instant",
+            "--rtklib_executable",
+            "/path/to/rnx2rtkp",
+            "--ppk_quality_threshold",
+            "2",
+            "--instant_sonar_confidence",
+            "95",
+            "--smoothed_sonar_confidence",
+            "70",
         ]
 
-        with patch.object(sys, 'argv', test_args):
+        with patch.object(sys, "argv", test_args):
             args = workflow_ppk.parse_args(workflow_ppk.__version__)
 
-        assert args.data_dir == '/path/to/data'
-        assert args.geoid_file == '/path/to/geoid.bin'
+        assert args.data_dir == "/path/to/data"
+        assert args.geoid_file == "/path/to/geoid.bin"
         assert args.make_pos == True
         assert args.verbosity == 1
-        assert args.sonar_method == 'instant'
-        assert args.rtklib_executable == '/path/to/rnx2rtkp'
+        assert args.sonar_method == "instant"
+        assert args.rtklib_executable == "/path/to/rnx2rtkp"
         assert args.ppk_quality_threshold == 2
         assert args.instant_sonar_confidence == 95
         assert args.smoothed_sonar_confidence == 70
 
     def test_parse_args_missing_required(self):
         """Test that missing required argument raises error"""
-        test_args = ['prog']  # No -d argument
+        test_args = ["prog"]  # No -d argument
 
-        with patch.object(sys, 'argv', test_args):
+        with patch.object(sys, "argv", test_args):
             with pytest.raises(SystemExit):
                 workflow_ppk.parse_args(workflow_ppk.__version__)
 
     def test_parse_args_default_values(self):
         """Test that default values are set correctly"""
-        test_args = ['prog', '-d', '/data']
+        test_args = ["prog", "-d", "/data"]
 
-        with patch.object(sys, 'argv', test_args):
+        with patch.object(sys, "argv", test_args):
             args = workflow_ppk.parse_args(workflow_ppk.__version__)
 
-        assert args.geoid_file == 'ref/g2012bu0.bin'
+        assert args.geoid_file == "ref/g2012bu0.bin"
         assert args.make_pos == False
         assert args.verbosity == 2
-        assert args.sonar_method == 'default'
+        assert args.sonar_method == "default"
         assert args.ppk_quality_threshold == 1
         assert args.instant_sonar_confidence == 99
         assert args.smoothed_sonar_confidence == 60
@@ -81,19 +90,19 @@ class TestVerbosityConversion:
 
     def test_verbosity_debug(self):
         """Test DEBUG logging level"""
-        with patch.object(logging, 'basicConfig') as mock_config:
+        with patch.object(logging, "basicConfig") as mock_config:
             workflow_ppk.verbosity_conversion(1)
             mock_config.assert_called_once_with(level=logging.DEBUG)
 
     def test_verbosity_info(self):
         """Test INFO logging level"""
-        with patch.object(logging, 'basicConfig') as mock_config:
+        with patch.object(logging, "basicConfig") as mock_config:
             workflow_ppk.verbosity_conversion(2)
             mock_config.assert_called_once_with(level=logging.INFO)
 
     def test_verbosity_warning(self):
         """Test WARNING logging level"""
-        with patch.object(logging, 'basicConfig') as mock_config:
+        with patch.object(logging, "basicConfig") as mock_config:
             workflow_ppk.verbosity_conversion(3)
             mock_config.assert_called_once_with(level=logging.WARN)
 
@@ -113,22 +122,22 @@ class TestSonarMethods:
 
     def test_sonar_methods_list(self):
         """Test that sonar_methods list is defined"""
-        assert hasattr(workflow_ppk, 'sonar_methods')
+        assert hasattr(workflow_ppk, "sonar_methods")
         assert isinstance(workflow_ppk.sonar_methods, list)
-        assert 'default' in workflow_ppk.sonar_methods
-        assert 'instant' in workflow_ppk.sonar_methods
-        assert 'smoothed' in workflow_ppk.sonar_methods
-        assert 'qaqc' in workflow_ppk.sonar_methods
+        assert "default" in workflow_ppk.sonar_methods
+        assert "instant" in workflow_ppk.sonar_methods
+        assert "smoothed" in workflow_ppk.sonar_methods
+        assert "qaqc" in workflow_ppk.sonar_methods
 
 
 class TestMainFunction:
     """Tests for main function (integration tests with mocking)"""
 
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.yellowfinLib.loadSonar_s500_binary')
-    @patch('workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files')
-    @patch('workflow_ppk.os.path.isfile')
-    @patch('workflow_ppk.os.makedirs')
+    @patch("workflow_ppk.yellowfinLib.threadGetArgusImagery")
+    @patch("workflow_ppk.yellowfinLib.loadSonar_s500_binary")
+    @patch("workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files")
+    @patch("workflow_ppk.os.path.isfile")
+    @patch("workflow_ppk.os.makedirs")
     def test_main_creates_directories(self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir):
         """Test that main function creates required directories"""
         mock_isfile.return_value = True  # Pretend files exist
@@ -137,9 +146,9 @@ class TestMainFunction:
         try:
             workflow_ppk.main(
                 datadir=datadir,
-                geoid='ref/g2012bu0.bin',
+                geoid="ref/g2012bu0.bin",
                 makePos=False,
-                verbose=3  # Use WARNING to minimize output
+                verbose=3,  # Use WARNING to minimize output
             )
         except Exception:
             # Main function will fail because of missing files, but we're testing directory creation
@@ -160,12 +169,14 @@ class TestMainFunction:
     # - Mock or provide all required dependencies (geoid file, RTKlib, etc.)
     # - Assert on specific expected behavior (function calls, file creation, etc.)
     # - Remove overly broad try/except blocks
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.yellowfinLib.loadSonar_s500_binary')
-    @patch('workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files')
-    @patch('workflow_ppk.os.path.isfile')
-    @patch('workflow_ppk.os.makedirs')
-    def test_main_with_default_sonar_method(self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir):
+    @patch("workflow_ppk.yellowfinLib.threadGetArgusImagery")
+    @patch("workflow_ppk.yellowfinLib.loadSonar_s500_binary")
+    @patch("workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files")
+    @patch("workflow_ppk.os.path.isfile")
+    @patch("workflow_ppk.os.makedirs")
+    def test_main_with_default_sonar_method(
+        self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir
+    ):
         """Test main function with default sonar method"""
         mock_isfile.return_value = True
         datadir = str(temp_dir / "20230815")
@@ -173,22 +184,24 @@ class TestMainFunction:
         try:
             workflow_ppk.main(
                 datadir=datadir,
-                geoid='ref/g2012bu0.bin',
+                geoid="ref/g2012bu0.bin",
                 makePos=False,
                 verbose=3,
-                sonar_method='default'
+                sonar_method="default",
             )
         except Exception:
             pass
 
         # If we got here without ValueError, sonar_method was accepted
 
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.yellowfinLib.loadSonar_s500_binary')
-    @patch('workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files')
-    @patch('workflow_ppk.os.path.isfile')
-    @patch('workflow_ppk.os.makedirs')
-    def test_main_with_instant_sonar_method(self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir):
+    @patch("workflow_ppk.yellowfinLib.threadGetArgusImagery")
+    @patch("workflow_ppk.yellowfinLib.loadSonar_s500_binary")
+    @patch("workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files")
+    @patch("workflow_ppk.os.path.isfile")
+    @patch("workflow_ppk.os.makedirs")
+    def test_main_with_instant_sonar_method(
+        self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir
+    ):
         """Test main function with instant sonar method"""
         mock_isfile.return_value = True
         datadir = str(temp_dir / "20230815")
@@ -196,20 +209,22 @@ class TestMainFunction:
         try:
             workflow_ppk.main(
                 datadir=datadir,
-                geoid='ref/g2012bu0.bin',
+                geoid="ref/g2012bu0.bin",
                 makePos=False,
                 verbose=3,
-                sonar_method='instant'
+                sonar_method="instant",
             )
         except Exception:
             pass
 
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.yellowfinLib.loadSonar_s500_binary')
-    @patch('workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files')
-    @patch('workflow_ppk.os.path.isfile')
-    @patch('workflow_ppk.os.makedirs')
-    def test_main_with_invalid_sonar_method(self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir):
+    @patch("workflow_ppk.yellowfinLib.threadGetArgusImagery")
+    @patch("workflow_ppk.yellowfinLib.loadSonar_s500_binary")
+    @patch("workflow_ppk.yellowfinLib.load_yellowfin_NMEA_files")
+    @patch("workflow_ppk.os.path.isfile")
+    @patch("workflow_ppk.os.makedirs")
+    def test_main_with_invalid_sonar_method(
+        self, mock_makedirs, mock_isfile, mock_nmea, mock_sonar, mock_argus, temp_dir
+    ):
         """Test that invalid sonar method raises ValueError"""
         mock_isfile.return_value = True
         datadir = str(temp_dir / "20230815")
@@ -217,14 +232,14 @@ class TestMainFunction:
         with pytest.raises(ValueError):
             workflow_ppk.main(
                 datadir=datadir,
-                geoid='ref/g2012bu0.bin',
+                geoid="ref/g2012bu0.bin",
                 makePos=False,
                 verbose=3,
-                sonar_method='invalid_method'
+                sonar_method="invalid_method",
             )
 
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.os.makedirs')
+    @patch("workflow_ppk.yellowfinLib.threadGetArgusImagery")
+    @patch("workflow_ppk.os.makedirs")
     def test_main_datadir_slash_handling(self, mock_makedirs, mock_argus, temp_dir):
         """Test that trailing slash is removed from datadir"""
         datadir_with_slash = str(temp_dir / "20230815") + "/"
@@ -232,9 +247,9 @@ class TestMainFunction:
         try:
             workflow_ppk.main(
                 datadir=datadir_with_slash,
-                geoid='ref/g2012bu0.bin',
+                geoid="ref/g2012bu0.bin",
                 makePos=False,
-                verbose=3
+                verbose=3,
             )
         except Exception:
             pass
@@ -252,8 +267,8 @@ class TestParameterValidation:
     - Need proper mocking and sample data to test real workflow
     """
 
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.os.makedirs')
+    @patch("workflow_ppk.yellowfinLib.threadGetArgusImagery")
+    @patch("workflow_ppk.os.makedirs")
     def test_main_ppk_quality_threshold(self, mock_makedirs, mock_argus, temp_dir):
         """Test PPK quality threshold parameter"""
         datadir = str(temp_dir / "20230815")
@@ -261,16 +276,16 @@ class TestParameterValidation:
         try:
             workflow_ppk.main(
                 datadir=datadir,
-                geoid='ref/g2012bu0.bin',
+                geoid="ref/g2012bu0.bin",
                 makePos=False,
                 verbose=3,
-                ppk_quality_threshold=2
+                ppk_quality_threshold=2,
             )
         except Exception:
             pass
 
-    @patch('workflow_ppk.yellowfinLib.threadGetArgusImagery')
-    @patch('workflow_ppk.os.makedirs')
+    @patch("workflow_ppk.yellowfinLib.threadGetArgusImagery")
+    @patch("workflow_ppk.os.makedirs")
     def test_main_confidence_thresholds(self, mock_makedirs, mock_argus, temp_dir):
         """Test sonar confidence threshold parameters"""
         datadir = str(temp_dir / "20230815")
@@ -278,11 +293,11 @@ class TestParameterValidation:
         try:
             workflow_ppk.main(
                 datadir=datadir,
-                geoid='ref/g2012bu0.bin',
+                geoid="ref/g2012bu0.bin",
                 makePos=False,
                 verbose=3,
                 instant_sonar_confidence=95,
-                smoothed_sonar_confidence=70
+                smoothed_sonar_confidence=70,
             )
         except Exception:
             pass
@@ -293,28 +308,31 @@ class TestParameterValidation:
 # - Doesn't validate that valid sonar_methods actually work correctly
 # - main() will fail for other reasons (missing data files, dependencies)
 # - Should test with real sample data and assert on actual behavior
-@pytest.mark.parametrize("sonar_method,expected_valid", [
-    ('default', True),
-    ('instant', True),
-    ('smoothed', True),
-    ('qaqc', True),
-    ('invalid', False),
-    ('', False),
-])
+@pytest.mark.parametrize(
+    "sonar_method,expected_valid",
+    [
+        ("default", True),
+        ("instant", True),
+        ("smoothed", True),
+        ("qaqc", True),
+        ("invalid", False),
+        ("", False),
+    ],
+)
 def test_sonar_method_validation(temp_dir, sonar_method, expected_valid):
     """Parameterized test for sonar method validation"""
     datadir = str(temp_dir / "20230815")
 
-    with patch('workflow_ppk.yellowfinLib.threadGetArgusImagery'):
-        with patch('workflow_ppk.os.makedirs'):
+    with patch("workflow_ppk.yellowfinLib.threadGetArgusImagery"):
+        with patch("workflow_ppk.os.makedirs"):
             if expected_valid:
                 try:
                     workflow_ppk.main(
                         datadir=datadir,
-                        geoid='ref/g2012bu0.bin',
+                        geoid="ref/g2012bu0.bin",
                         makePos=False,
                         verbose=3,
-                        sonar_method=sonar_method
+                        sonar_method=sonar_method,
                     )
                 except ValueError:
                     pytest.fail(f"Valid sonar_method '{sonar_method}' raised ValueError")
@@ -325,17 +343,17 @@ def test_sonar_method_validation(temp_dir, sonar_method, expected_valid):
                 with pytest.raises(ValueError):
                     workflow_ppk.main(
                         datadir=datadir,
-                        geoid='ref/g2012bu0.bin',
+                        geoid="ref/g2012bu0.bin",
                         makePos=False,
                         verbose=3,
-                        sonar_method=sonar_method
+                        sonar_method=sonar_method,
                     )
 
 
 @pytest.mark.parametrize("verbosity", [1, 2, 3])
 def test_verbosity_levels(verbosity):
     """Parameterized test for verbosity levels"""
-    with patch.object(logging, 'basicConfig') as mock_config:
+    with patch.object(logging, "basicConfig") as mock_config:
         workflow_ppk.verbosity_conversion(verbosity)
         assert mock_config.called
 
@@ -345,7 +363,7 @@ class TestVersionInfo:
 
     def test_version_exists(self):
         """Test that version is defined"""
-        assert hasattr(workflow_ppk, '__version__')
+        assert hasattr(workflow_ppk, "__version__")
 
     def test_version_type(self):
         """Test that version is a number"""

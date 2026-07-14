@@ -3,6 +3,7 @@
 import yaml
 import os
 
+
 # Mission Summary YAML File
 def make_summary_yaml(datadir):
 
@@ -30,25 +31,18 @@ def make_summary_yaml(datadir):
         if overwrite.strip().lower() == "y":
             print("File will be overwritten.")
 
-
     # Initialize a dictionary with four pre-defined keys and empty values
-    mission_metadata = {
-        "frf": "",
-        "overlap": "",
-        "repeat": "",
-        "repeat_count": ""
-    }
+    mission_metadata = {"frf": "", "overlap": "", "repeat": "", "repeat_count": ""}
 
     mission_questions = [
         "Is this an FRF mission? (y/n): ",
         "Did you overlap any FRF survey lines? (y/n): ",
         "Did you repeat lines? (y/n): ",
-        "How many times did you repeat lines? (enter a number): "
+        "How many times did you repeat lines? (enter a number): ",
     ]
 
-
     # Prompt the user to enter a value for each key, organize into dictionary object
-    print('## Populate mission summary YAML file by answering the following questions:')
+    print("## Populate mission summary YAML file by answering the following questions:")
     for i, key in enumerate(mission_metadata.keys()):
         if i == 3 and mission_metadata["repeat"].strip().lower() == "n":
             # Skip last question if answer to "did you repeat" is "n"
@@ -75,7 +69,6 @@ def make_summary_yaml(datadir):
                 except ValueError:
                     print("Input invalid. Please enter an integer.")
 
-
     # Prompt the user to enter any additional notes
     user_notes_prompt = input("Optional -- Enter any additional notes (hit enter to continue): ")
     if not user_notes_prompt:
@@ -84,8 +77,11 @@ def make_summary_yaml(datadir):
         user_notes = "\n" + "# User Notes: " + user_notes_prompt
 
     # Define the preamble text
-    preamble = "# This is a YAML file containing a dictionary of user responses to the following questions about the mission:\n" + "\n".join(f"#     {item}" for item in mission_questions) + "\n"
-
+    preamble = (
+        "# This is a YAML file containing a dictionary of user responses to the following questions about the mission:\n"
+        + "\n".join(f"#     {item}" for item in mission_questions)
+        + "\n"
+    )
 
     # Write the dictionary to YAML file
     with open(file_path, "w") as file:
@@ -110,7 +106,6 @@ def make_failure_yaml(datadir):
     # Create the full file path
     file_path = os.path.join(datadir, failure_fname)
 
-
     # First, check to see if file already exists; if so, decide if you want to overwrite it
     if os.path.exists(file_path):
         while True:
@@ -129,9 +124,7 @@ def make_failure_yaml(datadir):
         if overwrite.strip().lower() == "y":
             print("File will be overwritten.")
 
-
-
-   # Initialize a dictionary with four pre-defined keys and empty values
+    # Initialize a dictionary with four pre-defined keys and empty values
     failure_metadata = {
         "mission_failure": "",
         "mechanical_failure": "",
@@ -143,14 +136,13 @@ def make_failure_yaml(datadir):
         "Was there any kind of mission failure? (y/n): ",
         "Enter category of mechanical failure -- \n   0=no mechanical failure, \n   1=something broke but mission was still accomplished, \n   2=vehicle rescue required: ",
         "Enter category of quality failure -- \n   0=no data failure, \n   1=data failure: ",
-        "Enter category of condition failure -- \n   0=no conditions failure, \n   1=comms, \n   2=hydrodynamic (i.e. breakpoint), \n   3=environmental (i.e. biofouling): "
+        "Enter category of condition failure -- \n   0=no conditions failure, \n   1=comms, \n   2=hydrodynamic (i.e. breakpoint), \n   3=environmental (i.e. biofouling): ",
     ]
 
-
     # Prompt the user to enter a value for each key, organize into dictionary object
-    print('## Populate mission failure YAML file by answering the following questions:')
+    print("## Populate mission failure YAML file by answering the following questions:")
 
-    failure_comments = ""     # Create empty notes string
+    failure_comments = ""  # Create empty notes string
     for i, key in enumerate(failure_metadata.keys()):
         if i > 0 and failure_metadata["mission_failure"].strip().lower() == "n":
             break
@@ -174,9 +166,8 @@ def make_failure_yaml(datadir):
                         break
                 except ValueError:
                     print("Input invalid. Please enter an integer.")
-        if i > 0 and failure_metadata[key] != '0':
+        if i > 0 and failure_metadata[key] != "0":
             failure_comments = failure_comments + "\n" + "# " + input("Add comment: ")
-
 
     # Prompt the user to enter any additional notes
     user_notes_prompt = input("Optional -- Enter any additional notes (hit enter to continue): ")
@@ -189,7 +180,11 @@ def make_failure_yaml(datadir):
     failure_questions_nonewline = [item.replace("\n   ", "") for item in failure_questions]
 
     # Define the preamble text
-    preamble = "# This is a YAML file containing a dictionary of user responses to the following questions about the mission:\n" + "\n".join(f"#     {item}" for item in failure_questions_nonewline) + "\n"
+    preamble = (
+        "# This is a YAML file containing a dictionary of user responses to the following questions about the mission:\n"
+        + "\n".join(f"#     {item}" for item in failure_questions_nonewline)
+        + "\n"
+    )
 
     # Create yaml file name
     failure_fname = r"mission_failure_metadata.yaml"
